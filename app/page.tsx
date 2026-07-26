@@ -17,6 +17,7 @@ import Loader from '@/components/Loader/Loader';
 import Overlays from '@/components/Overlays/Overlays';
 import ScrollIndicator from '@/components/ScrollIndicator/ScrollIndicator';
 import AudioPlayer from '@/components/AudioPlayer/AudioPlayer';
+import MemoryFlashback from '@/components/MemoryFlashback/MemoryFlashback';
 import Lenis from 'lenis';
 
 // Dynamic import for the heavy 3D scene
@@ -54,12 +55,16 @@ export default function Home() {
   }, []);
 
   // Progress bar tracker
+  const scrollProgressRef = useRef(0);
+  
   useEffect(() => {
     const updateProgress = () => {
       const scrollTop = window.scrollY || document.documentElement.scrollTop;
       const docHeight = document.documentElement.scrollHeight - window.innerHeight;
       if (docHeight > 0) {
-        setProgressHeight((scrollTop / docHeight) * 100);
+        const p = scrollTop / docHeight;
+        scrollProgressRef.current = p;
+        setProgressHeight(p * 100);
       }
     };
 
@@ -106,7 +111,10 @@ export default function Home() {
       )}
 
       {/* Background Music */}
-      {loaded && <AudioPlayer videoId="ydPGNrDP6hA" startSeconds={155} />}
+      {loaded && <AudioPlayer scrollProgressRef={scrollProgressRef} />}
+
+      {/* Finale Memory Flashback */}
+      {loaded && <MemoryFlashback scrollProgressRef={scrollProgressRef} />}
     </>
   );
 }

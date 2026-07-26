@@ -78,9 +78,9 @@ export default function CameraRig({ scrollProgressRef, mouseRef }: CameraRigProp
     const t = Math.min(Math.max(smoothProgress.current, 0), 0.999);
 
     // Continuous forward movement
-    // Total distance = 7 cycles * 30 units = 210 units.
+    // Total distance = 8 cycles * 30 units = 240 units.
     // Starts at 12 to match cycle formation
-    const cameraZ = 12 - t * 210;
+    const cameraZ = 12 - t * 240;
 
     // Remove wobble, just a perfectly straight cinematic push
     const targetX = 0;

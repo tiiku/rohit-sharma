@@ -15,12 +15,14 @@ export function getMorphState(progress: number): MorphState {
     return { stage: 7, nextStage: 0, morphT: 1, cameraPhase: 1 };
   }
 
-  const numStages = 7; // Pull Shot, Bat, Ball, Helmet, Stumps, Bails, Trophy
+  const numStages = 8; // Pull Shot, Bat, Ball, Helmet, Stumps, Bails, Trophy, Flashback
   const cycleLength = 1.0 / numStages;
   
-  const cycleIdx = Math.floor(p / cycleLength); // 0 to 6
+  const cycleIdx = Math.floor(p / cycleLength); // 0 to 7
   const localP = (p - cycleIdx * cycleLength) / cycleLength; // 0 to 1 within cycle
-  const targetShape = cycleIdx + 1;
+  
+  // Clamp targetShape to 7 so it doesn't request a non-existent shape for cycle 8
+  const targetShape = cycleIdx === 7 ? 0 : cycleIdx + 1;
 
   let stage = 0;
   let nextStage = 0;
