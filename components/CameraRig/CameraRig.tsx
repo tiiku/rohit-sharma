@@ -71,32 +71,26 @@ export default function CameraRig({ scrollProgressRef, mouseRef }: CameraRigProp
   useFrame((_, delta) => {
     const targetProgress = scrollProgressRef.current ?? 0;
 
-    // Smooth interpolation with slight overshoot feel
-    const lerpFactor = 1 - Math.pow(0.03, delta);
+    // Ultra-smooth cinematic interpolation
+    const lerpFactor = 1 - Math.pow(0.005, delta);
     smoothProgress.current += (targetProgress - smoothProgress.current) * lerpFactor;
 
-    // Mouse smooth follow
-    if (mouseRef.current) {
-      smoothMouse.current.lerp(mouseRef.current, 0.02);
-    }
-
-    // Get camera position from spline
     const t = Math.min(Math.max(smoothProgress.current, 0), 0.999);
-    const position = cameraPath.getPointAt(t);
-    const lookAt = lookAtPath.getPointAt(t);
 
-    // Apply subtle mouse-based parallax to camera
-    position.x += smoothMouse.current.x * 0.5;
-    position.y += smoothMouse.current.y * 0.3;
+    // Continuous forward movement
+    // Total distance = 7 cycles * 30 units = 210 units.
+    // Starts at 12 to match cycle formation
+    const cameraZ = 12 - t * 210;
+
+    // Remove wobble, just a perfectly straight cinematic push
+    const targetX = 0;
+    const targetY = 0;
 
     // Smoothly update camera
-    camera.position.lerp(position, 0.1);
+    camera.position.set(targetX, targetY, cameraZ);
     
-    // Look at target with mouse offset
-    const lookTarget = lookAt.clone();
-    lookTarget.x += smoothMouse.current.x * 0.3;
-    lookTarget.y += smoothMouse.current.y * 0.2;
-    camera.lookAt(lookTarget);
+    // Look slightly ahead
+    camera.lookAt(targetX, targetY, cameraZ - 10);
   });
 
   return null;

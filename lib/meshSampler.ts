@@ -342,20 +342,128 @@ export function generateTrophyPositions(count: number = PARTICLE_COUNT): Float32
 }
 
 /**
+ * Rohit Sharma Pull Shot Figure
+ * Generated from a silhouette image
+ */
+export async function generatePullShotPositionsAsync(count: number = PARTICLE_COUNT): Promise<Float32Array> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.src = '/pull_shot_silhouette.png';
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return resolve(new Float32Array(count * 3));
+      }
+      
+      const targetSize = 200;
+      const ratio = img.width / img.height;
+      canvas.width = ratio > 1 ? targetSize : targetSize * ratio;
+      canvas.height = ratio > 1 ? targetSize / ratio : targetSize;
+      
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      
+      const validPixels: {x: number, y: number}[] = [];
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          const idx = (y * canvas.width + x) * 4;
+          const r = imgData[idx] / 255;
+          const g = imgData[idx+1] / 255;
+          const b = imgData[idx+2] / 255;
+          const alpha = imgData[idx+3];
+          
+          // Sample dark pixels (silhouette)
+          if (alpha > 50 && (r + g + b) < 1.5) {
+             validPixels.push({ x, y });
+          }
+        }
+      }
+      
+      const positions = new Float32Array(count * 3);
+      if (validPixels.length === 0) return resolve(positions);
+      
+      for (let i = 0; i < count; i++) {
+        const pixel = validPixels[Math.floor(Math.random() * validPixels.length)];
+        
+        // Scale to match scene size (~7 units)
+        const px = ((pixel.x / canvas.width) - 0.5) * (canvas.width / targetSize) * 7.0;
+        const py = -((pixel.y / canvas.height) - 0.5) * (canvas.height / targetSize) * 7.0;
+        
+        const jitterX = (Math.random() - 0.5) * (7.0 / targetSize);
+        const jitterY = (Math.random() - 0.5) * (7.0 / targetSize);
+        
+        positions[i * 3] = px + jitterX;
+        positions[i * 3 + 1] = py + jitterY;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 0.4;
+      }
+      
+      resolve(positions);
+    };
+    img.onerror = () => {
+      console.warn("Could not load pull_shot_silhouette.png, falling back to empty positions");
+      resolve(new Float32Array(count * 3));
+    };
+  });
+}
+
+/**
+ * Normalizes a set of positions to a standard bounding box scale and centers it.
+ * This ensures all shapes appear the exact same size on screen.
+ */
+function normalizePositions(positions: Float32Array, targetScale: number = 4.5): Float32Array {
+  const count = positions.length / 3;
+  if (count === 0) return positions;
+
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+  for (let i = 0; i < count; i++) {
+    const x = positions[i * 3];
+    const y = positions[i * 3 + 1];
+    const z = positions[i * 3 + 2];
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (z < minZ) minZ = z;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+    if (z > maxZ) maxZ = z;
+  }
+
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const cz = (minZ + maxZ) / 2;
+
+  const maxDim = Math.max(maxX - minX, maxY - minY, maxZ - minZ) || 1;
+  const scale = targetScale / maxDim;
+
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = (positions[i * 3] - cx) * scale;
+    positions[i * 3 + 1] = (positions[i * 3 + 1] - cy) * scale;
+    positions[i * 3 + 2] = (positions[i * 3 + 2] - cz) * scale;
+  }
+
+  return positions;
+}
+
+/**
  * Generate all morph targets at once.
  * Returns an object with Float32Array for each target.
  */
 export async function generateAllTargetsAsync(count: number = PARTICLE_COUNT) {
   const batData = await generateBatPositionsAsync(count);
+  const pullShotPositions = await generatePullShotPositionsAsync(count);
   return {
     random: generateRandomPositions(count),
-    bat: batData.positions,
+    pullShot: normalizePositions(pullShotPositions),
+    bat: normalizePositions(batData.positions),
     batColors: batData.colors,
-    ball: generateBallPositions(count),
-    helmet: generateHelmetPositions(count),
-    stumps: generateStumpsPositions(count),
-    bails: generateBailsPositions(count),
-    trophy: generateTrophyPositions(count),
+    ball: normalizePositions(generateBallPositions(count)),
+    helmet: normalizePositions(generateHelmetPositions(count)),
+    stumps: normalizePositions(generateStumpsPositions(count)),
+    bails: normalizePositions(generateBailsPositions(count)),
+    trophy: normalizePositions(generateTrophyPositions(count)),
   };
 }
 

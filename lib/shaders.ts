@@ -46,8 +46,14 @@ void main() {
   float depth = (pos.z + 50.0) / 100.0;
   pos.xy += uMouse * depth * 1.5;
 
-  // Scroll-based camera travel
-  pos.z += uScrollProgress * 150.0;
+  // Scroll-based camera travel - fly through galaxy infinitely
+  float scrollDistance = uScrollProgress * 3000.0; // Much faster travel
+  pos.z += scrollDistance;
+  
+  // Wrap Z space to recycle particles. Original Z span is ~ [-150, 50].
+  // Wrapping interval is 200 units.
+  float zSpan = 200.0;
+  pos.z = mod(pos.z + 150.0, zSpan) - 150.0;
 
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
   gl_Position = projectionMatrix * mvPosition;
@@ -102,6 +108,7 @@ ${simplexNoise3D}
 uniform float uTime;
 uniform float uMorphProgress;
 uniform float uMorphStage;
+uniform float uMorphNextStage;
 uniform vec2 uMouse;
 uniform vec3 uMouseWorld;
 uniform float uBreathing;
@@ -112,6 +119,7 @@ attribute vec3 aPositionTarget2;
 attribute vec3 aPositionTarget3;
 attribute vec3 aPositionTarget4;
 attribute vec3 aPositionTarget5;
+attribute vec3 aPositionTarget6;
 attribute vec3 aPositionRandom;
 attribute float aSize;
 attribute float aRandom;
@@ -122,24 +130,27 @@ varying float vDistToCenter;
 varying float vRandom;
 varying vec3 vBatColor;
 varying float vBatWeight;
+varying float vTrophyWeight;
+varying float vBlurriness;
 
 // Get target position for a given stage
 vec3 getTargetPosition(float stage) {
   int s = int(stage);
   if (s == 0) return aPositionRandom;
-  if (s == 1) return aPositionTarget0; // Bat
-  if (s == 2) return aPositionTarget1; // Ball
-  if (s == 3) return aPositionTarget2; // Helmet
-  if (s == 4) return aPositionTarget3; // Stumps
-  if (s == 5) return aPositionTarget4; // Bails
-  if (s == 6) return aPositionTarget5; // Trophy
+  if (s == 1) return aPositionTarget6; // Pull shot figure
+  if (s == 2) return aPositionTarget0; // Bat
+  if (s == 3) return aPositionTarget1; // Ball
+  if (s == 4) return aPositionTarget2; // Helmet
+  if (s == 5) return aPositionTarget3; // Stumps
+  if (s == 6) return aPositionTarget4; // Bails
+  if (s == 7) return aPositionTarget5; // Trophy
   return aPositionRandom;
 }
 
 void main() {
   // Determine current and next morph targets
   float stage = uMorphStage;
-  float nextStage = min(stage + 1.0, 7.0);
+  float nextStage = uMorphNextStage;
   float t = uMorphProgress;
 
   vec3 currentTarget = getTargetPosition(stage);
@@ -150,16 +161,20 @@ void main() {
   vec3 pos = mix(currentTarget, nextTarget, smoothT);
 
   // === ALIVE MOTION ===
+  
+  // Calculate how close we are to a transition (0 = fully formed, 1 = exactly midway)
+  float isTransition = sin(t * 3.14159265);
+  vBlurriness = isTransition;
 
-  // Simplex noise displacement (particles vibrate even while forming shapes)
+  // Simplex noise displacement (extremely subtle, just for slight organic feel)
   float noiseScale = 0.6;
   float noiseSpeed = uTime * 0.25;
   float nx = snoise(vec3(pos.x * noiseScale, pos.y * noiseScale, noiseSpeed + aRandom * 100.0));
   float ny = snoise(vec3(pos.y * noiseScale, pos.z * noiseScale, noiseSpeed + aRandom * 200.0));
   float nz = snoise(vec3(pos.z * noiseScale, pos.x * noiseScale, noiseSpeed + aRandom * 300.0));
 
-  // Scale noise down when particles are forming a shape
-  float noiseStrength = mix(1.5, 0.08, smoothT * 0.5 + 0.5);
+  // Constant low noise, no chaotic movement during transitions
+  float noiseStrength = 0.02;
   pos += vec3(nx, ny, nz) * noiseStrength;
 
   // Breathing effect (subtle scale oscillation)
@@ -171,17 +186,6 @@ void main() {
   float orbitRadius = 0.03 * (1.0 - smoothT * 0.8);
   pos.x += cos(orbitAngle) * orbitRadius;
   pos.y += sin(orbitAngle) * orbitRadius;
-
-  // === MOUSE INTERACTION ===
-  vec2 mouseDir = pos.xy - uMouseWorld.xy;
-  float mouseDist = length(mouseDir);
-  float holeRadius = 0.25;
-  // Apply hover effect only to the front part of the object
-  if (mouseDist < holeRadius && pos.z > 0.0) {
-    vec2 pushDir = normalize(mouseDir + vec2(0.0001));
-    float pushDist = (holeRadius - mouseDist); 
-    pos.xy += pushDir * pushDist;
-  }
 
   // === FINAL POSITION ===
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
@@ -199,10 +203,13 @@ void main() {
   vRandom = aRandom;
   vBatColor = aBatColor;
   
-  // Calculate how close we are to the bat stage (stage 1.0)
+  // Calculate how close we are to the bat stage (stage 2.0 now)
   // t is the progress between current and next stage
   float exactStage = stage + t;
-  vBatWeight = 1.0 - clamp(abs(exactStage - 1.0), 0.0, 1.0);
+  vBatWeight = 1.0 - clamp(abs(exactStage - 2.0), 0.0, 1.0);
+  
+  // Calculate how close we are to the trophy stage (stage 7.0)
+  vTrophyWeight = 1.0 - clamp(abs(exactStage - 7.0), 0.0, 1.0);
 }
 `;
 
@@ -214,6 +221,8 @@ varying float vDistToCenter;
 varying float vRandom;
 varying vec3 vBatColor;
 varying float vBatWeight;
+varying float vTrophyWeight;
+varying float vBlurriness;
 
 void main() {
   // Soft circle with radial falloff
@@ -222,26 +231,29 @@ void main() {
 
   if (dist > 0.5) discard;
 
-  // Strict circle with basic anti-aliasing
-  float alpha = smoothstep(0.5, 0.45, dist) * vAlpha;
+  // Sharp circle when formed (0.45), very soft circle when transitioning (0.1)
+  float innerEdge = mix(0.48, 0.1, vBlurriness);
+  float alpha = smoothstep(0.5, innerEdge, dist) * vAlpha;
+
+  // Base white color
+  vec3 white = vec3(1.0, 1.0, 1.0);
 
   // Golden color palette
   vec3 gold = vec3(1.0, 0.843, 0.0);        // #FFD700
-  vec3 darkGold = vec3(0.722, 0.525, 0.043); // #B8860B
-  vec3 amber = vec3(1.0, 0.647, 0.0);        // #FFA500
-  vec3 warmWhite = vec3(1.0, 0.94, 0.8);
+  vec3 amber = vec3(1.0, 0.647, 0.0);       // #FFA500
 
   // Color variation based on particle properties
   float colorMix = sin(vRandom * 6.28 + uTime * 0.3) * 0.5 + 0.5;
-  vec3 color = mix(gold, amber, colorMix * 0.4);
+  vec3 goldenColor = mix(gold, amber, colorMix * 0.4);
+
+  // Mix white and gold based on trophy weight
+  vec3 color = mix(white, goldenColor, vTrophyWeight);
 
   // Brighter particles near center of shape
-  color = mix(color, warmWhite, smoothstep(0.5, 0.0, vDistToCenter) * 0.15);
-
-  // (Color mixing for bat image is removed as requested; keeping standard gold)
+  color = mix(color, vec3(1.0, 1.0, 1.0), smoothstep(0.5, 0.0, vDistToCenter) * 0.15);
 
   // Dim overall to prevent additive blowout
-  color *= 0.5;
+  color *= 0.6;
 
   gl_FragColor = vec4(color, alpha);
 }

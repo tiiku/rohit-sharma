@@ -65,7 +65,7 @@ export default function Scene() {
       }}
       gl={{
         antialias: false,
-        alpha: false,
+        alpha: true,
         powerPreference: 'high-performance',
         toneMapping: THREE.ACESFilmicToneMapping,
         toneMappingExposure: 0.8,
@@ -78,7 +78,7 @@ export default function Scene() {
         width: '100vw',
         height: '100vh',
         zIndex: 1,
-        background: '#050301',
+        background: 'transparent',
       }}
     >
       <Suspense fallback={null}>

@@ -38,6 +38,7 @@ export default function MorphSystem({ scrollProgressRef, mouseRef, mouseWorldRef
       uTime: { value: 0 },
       uMorphProgress: { value: 0 },
       uMorphStage: { value: 0 },
+      uMorphNextStage: { value: 0 },
       uMouse: { value: new THREE.Vector2(0, 0) },
       uMouseWorld: { value: new THREE.Vector3(0, 0, 0) },
       uBreathing: { value: 1.0 },
@@ -45,13 +46,23 @@ export default function MorphSystem({ scrollProgressRef, mouseRef, mouseWorldRef
     []
   );
 
+  const meshRef = useRef<THREE.Points>(null);
+
   useFrame(({ clock, camera, pointer }) => {
-    if (materialRef.current) {
+    if (materialRef.current && meshRef.current) {
       const progress = scrollProgressRef.current ?? 0;
       const morphState = getMorphState(progress);
 
+      const numStages = 7;
+      const cycleLength = 1.0 / numStages;
+      const cycleIdx = Math.floor(Math.min(progress, 0.999) / cycleLength);
+
+      // Snap the entire particle system to the current cycle's depth
+      meshRef.current.position.z = -cycleIdx * 30;
+
       materialRef.current.uniforms.uTime.value = clock.getElapsedTime();
       materialRef.current.uniforms.uMorphStage.value = morphState.stage;
+      materialRef.current.uniforms.uMorphNextStage.value = morphState.nextStage;
       materialRef.current.uniforms.uMorphProgress.value = morphState.morphT;
       materialRef.current.uniforms.uBreathing.value = 1.0;
 
@@ -75,7 +86,7 @@ export default function MorphSystem({ scrollProgressRef, mouseRef, mouseWorldRef
   if (!geometry) return null;
 
   return (
-    <points frustumCulled={false}>
+    <points ref={meshRef} frustumCulled={false}>
       <bufferGeometry attach="geometry" {...geometry} />
       <shaderMaterial
         ref={materialRef}

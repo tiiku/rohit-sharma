@@ -38,6 +38,7 @@ export async function createMorphParticleSystemAsync(): Promise<ParticleSystem> 
   geometry.setAttribute('aPositionTarget3', new THREE.BufferAttribute(targets.stumps, 3));
   geometry.setAttribute('aPositionTarget4', new THREE.BufferAttribute(targets.bails, 3));
   geometry.setAttribute('aPositionTarget5', new THREE.BufferAttribute(targets.trophy, 3));
+  geometry.setAttribute('aPositionTarget6', new THREE.BufferAttribute(targets.pullShot, 3));
   geometry.setAttribute('aBatColor', new THREE.BufferAttribute(targets.batColors, 3));
 
   // Per-particle size variation
