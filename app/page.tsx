@@ -25,7 +25,6 @@ const Scene = lazy(() => import('@/components/Scene/Scene'));
 
 export default function Home() {
   const [loaded, setLoaded] = useState(false);
-  const [progressHeight, setProgressHeight] = useState(0);
   const lenisRef = useRef<Lenis | null>(null);
 
   const handleLoaderComplete = useCallback(() => {
@@ -64,7 +63,6 @@ export default function Home() {
       if (docHeight > 0) {
         const p = scrollTop / docHeight;
         scrollProgressRef.current = p;
-        setProgressHeight(p * 100);
       }
     };
 
@@ -93,15 +91,7 @@ export default function Home() {
       {/* Scroll indicator */}
       {loaded && <ScrollIndicator />}
 
-      {/* Progress track */}
-      {loaded && (
-        <div className="progress-track" id="progress-track">
-          <div
-            className="progress-fill"
-            style={{ height: `${progressHeight}%` }}
-          />
-        </div>
-      )}
+
 
       {/* Watermark */}
       {loaded && (

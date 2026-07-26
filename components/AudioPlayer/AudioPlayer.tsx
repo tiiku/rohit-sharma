@@ -24,7 +24,7 @@ export default function AudioPlayer({ scrollProgressRef }: AudioPlayerProps) {
 
   const optsB: YouTubeProps['opts'] = {
     height: '0', width: '0',
-    playerVars: { autoplay: 0, controls: 0, disablekb: 1, fs: 0, loop: 1, modestbranding: 1 },
+    playerVars: { autoplay: 1, controls: 0, disablekb: 1, fs: 0, loop: 1, modestbranding: 1, mute: 1 },
   };
 
   const isPlayingBRef = useRef(false);
@@ -39,16 +39,14 @@ export default function AudioPlayer({ scrollProgressRef }: AudioPlayerProps) {
 
   const onReadyB = (event: YouTubeEvent) => {
     playerB.current = event.target;
-    event.target.setVolume(0);
-    event.target.unMute();
-    // Do NOT play yet, wait until we scroll to the climax
+    // Let it play silently in the background
     setReadyB(true);
   };
 
   const toggleMute = () => {
     if (isMuted) {
       if (playerA.current) playerA.current.unMute();
-      if (playerB.current) playerB.current.unMute();
+      if (playerB.current && isPlayingBRef.current) playerB.current.unMute();
       setIsMuted(false);
     } else {
       if (playerA.current) playerA.current.mute();
@@ -57,38 +55,42 @@ export default function AudioPlayer({ scrollProgressRef }: AudioPlayerProps) {
     }
   };
 
-  // Crossfader loop
   useEffect(() => {
     const updateVolumes = () => {
       const p = scrollProgressRef.current ?? 0;
       
-      if (playerA.current && playerB.current && readyA && readyB && !isMuted) {
-        // Assume climax starts near 0.85 progress
-        const climaxStart = 0.80;
-        const climaxEnd = 0.95;
-        
-        let climaxProgress = 0;
-        if (p > climaxStart) {
-          climaxProgress = Math.min((p - climaxStart) / (climaxEnd - climaxStart), 1);
-          
-          // Start playing B if it isn't already
-          if (!isPlayingBRef.current) {
-            playerB.current.playVideo();
-            isPlayingBRef.current = true;
-          }
-        } else {
-          // Pause B if we scroll back up
-          if (isPlayingBRef.current) {
-            playerB.current.pauseVideo();
-            isPlayingBRef.current = false;
-          }
+      const climaxStart = 0.80;
+      const climaxEnd = 0.95;
+      
+      let climaxProgress = 0;
+      if (p > climaxStart) {
+        climaxProgress = Math.min((p - climaxStart) / (climaxEnd - climaxStart), 1);
+      }
+
+      if (!isMuted) {
+        // Player A Logic
+        if (playerA.current && readyA) {
+          const volA = Math.floor((1 - climaxProgress) * 50);
+          playerA.current.setVolume(volA);
         }
 
-        const volA = Math.floor((1 - climaxProgress) * 50);
-        const volB = Math.floor(climaxProgress * 80); // Climax gets louder
-
-        playerA.current.setVolume(volA);
-        playerB.current.setVolume(volB);
+        // Player B Logic
+        if (playerB.current && readyB) {
+          if (p > climaxStart) {
+            if (!isPlayingBRef.current) {
+              playerB.current.seekTo(0);
+              playerB.current.unMute();
+              isPlayingBRef.current = true;
+            }
+          } else {
+            if (isPlayingBRef.current) {
+              playerB.current.mute();
+              isPlayingBRef.current = false;
+            }
+          }
+          const volB = Math.floor(climaxProgress * 80);
+          playerB.current.setVolume(volB);
+        }
       }
       rafRef.current = requestAnimationFrame(updateVolumes);
     };

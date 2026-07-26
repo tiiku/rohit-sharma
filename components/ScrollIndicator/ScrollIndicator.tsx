@@ -17,16 +17,18 @@ const ICONS = [
 export default function ScrollIndicator() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const handleScroll = () => {
       const scrollTop = window.scrollY || document.documentElement.scrollTop;
       const docHeight = document.documentElement.scrollHeight - window.innerHeight;
       if (docHeight > 0) {
-        const progress = Math.min(Math.max(scrollTop / docHeight, 0), 1);
+        const p = Math.min(Math.max(scrollTop / docHeight, 0), 1);
+        setProgress(p);
         const numStages = 8;
         const cycleLength = 1.0 / numStages;
-        const currentIdx = Math.floor(Math.min(progress, 0.999) / cycleLength);
+        const currentIdx = Math.floor(Math.min(p, 0.999) / cycleLength);
         setActiveIndex(currentIdx);
       }
     };
@@ -47,7 +49,7 @@ export default function ScrollIndicator() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '12px',
+        gap: '16px',
         pointerEvents: 'none',
       }}
     >
@@ -57,8 +59,11 @@ export default function ScrollIndicator() {
         const isHovered = idx === hoveredIndex;
         const Icon = item.Icon;
 
+        const cycleLength = 1.0 / 8;
+        const localProgress = Math.max(0, Math.min(1, (progress - idx * cycleLength) / cycleLength));
+
         return (
-          <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+          <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div
               style={{
                 position: 'relative',
@@ -78,13 +83,10 @@ export default function ScrollIndicator() {
                 style={{
                   width: '32px',
                   height: '32px',
-                  borderRadius: '50%',
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  color: isActive ? '#FFD700' : isHovered ? '#FFFFFF' : isPast ? 'rgba(255, 215, 0, 0.4)' : 'rgba(255, 255, 255, 0.2)',
-                  border: isActive ? '1px solid #FFD700' : isHovered ? '1px solid #FFFFFF' : '1px solid transparent',
-                  background: isActive ? 'rgba(255, 215, 0, 0.1)' : isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                  color: isActive ? '#FFFFFF' : isHovered ? '#FFFFFF' : 'rgba(255, 255, 255, 0.3)',
                   transition: 'all 0.3s ease',
                   transform: isActive || isHovered ? 'scale(1.2)' : 'scale(1)',
                 }}
@@ -118,17 +120,26 @@ export default function ScrollIndicator() {
                 {item.name}
               </div>
             </div>
-            
-            {/* Draw line to next icon */}
-            {idx < ICONS.length - 1 && (
+
+            {/* Line indicator ONLY under the active icon */}
+            {isActive && idx < ICONS.length - 1 && (
               <div
                 style={{
                   width: '1px',
-                  height: '24px',
-                  background: isPast ? 'rgba(255, 215, 0, 0.4)' : 'rgba(255, 255, 255, 0.1)',
-                  transition: 'background 0.5s ease',
+                  height: '40px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  margin: '8px 0',
+                  position: 'relative',
                 }}
-              />
+              >
+                <div
+                  style={{
+                    width: '100%',
+                    height: `${localProgress * 100}%`,
+                    background: '#FFFFFF',
+                  }}
+                />
+              </div>
             )}
           </div>
         );
