@@ -139,88 +139,83 @@ export default function Overlays() {
   }, []);
 
   if (!activeSection) return null;
+  
+  const sectionIndex = SECTIONS.findIndex(s => s.id === activeSection.id);
+  const isEven = sectionIndex % 2 === 0;
 
   return (
     <div
       id={`overlay-${activeSection.id}`}
         style={{
-          // Container doesn't need global opacity anymore, elements handle it
           position: 'fixed',
           inset: 0,
           zIndex: 10,
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
+          alignItems: isEven ? 'flex-start' : 'flex-end',
           justifyContent: 'center',
+          padding: '0 10vw',
           pointerEvents: 'none',
         }}
       >
         <div style={{
-          textAlign: 'center',
-          padding: '60px 80px',
+          textAlign: isEven ? 'left' : 'right',
+          padding: '40px 48px',
           borderRadius: '24px',
-          background: `radial-gradient(ellipse at center, rgba(5,3,1,${Math.max(titleOpacity, subtitleOpacity) * 0.7}) 0%, rgba(5,3,1,${Math.max(titleOpacity, subtitleOpacity) * 0.3}) 50%, transparent 80%)`,
+          background: `rgba(15, 12, 8, ${Math.max(titleOpacity, subtitleOpacity) * 0.4})`,
+          backdropFilter: `blur(${Math.max(titleOpacity, subtitleOpacity) * 12}px)`,
+          WebkitBackdropFilter: `blur(${Math.max(titleOpacity, subtitleOpacity) * 12}px)`,
+          border: `1px solid rgba(255, 215, 0, ${Math.max(titleOpacity, subtitleOpacity) * 0.15})`,
+          borderLeft: isEven ? `4px solid rgba(255, 215, 0, ${titleOpacity})` : `1px solid rgba(255, 215, 0, ${Math.max(titleOpacity, subtitleOpacity) * 0.15})`,
+          borderRight: !isEven ? `4px solid rgba(255, 215, 0, ${titleOpacity})` : `1px solid rgba(255, 215, 0, ${Math.max(titleOpacity, subtitleOpacity) * 0.15})`,
+          maxWidth: '500px',
+          boxShadow: `0 30px 60px rgba(0,0,0,${Math.max(titleOpacity, subtitleOpacity) * 0.6})`,
+          transform: `translateX(${isEven ? (1 - Math.max(titleOpacity, subtitleOpacity)) * -40 : (1 - Math.max(titleOpacity, subtitleOpacity)) * 40}px)`,
+          transition: 'transform 0.1s ease-out'
         }}>
           {/* Subtitle (Info) - Comes first visually and chronologically */}
           <p style={{
-            fontSize: 'clamp(14px, 2.5vw, 22px)',
-            fontWeight: 300,
+            fontSize: 'clamp(14px, 2vw, 18px)',
+            fontWeight: 400,
             fontFamily: "'Outfit', sans-serif",
-            color: '#F5E6C8',
-            letterSpacing: '0.15em',
+            color: '#E8DCC4',
+            letterSpacing: '0.2em',
             textTransform: 'uppercase',
-            marginBottom: '16px',
-            opacity: subtitleOpacity * 0.9,
-            textShadow: '0 0 20px rgba(5,3,1,0.8), 0 2px 10px rgba(5,3,1,0.6)',
-            transform: `translateY(${(1 - subtitleOpacity) * 30}px)`,
+            marginBottom: '12px',
+            opacity: subtitleOpacity * 0.8,
+            transform: `translateY(${(1 - subtitleOpacity) * 20}px)`,
           }}>
             {activeSection.subtitle}
           </p>
   
           {/* Title (Figure) - Comes after */}
-          {activeSection.id === 'bat' ? (
-            <img
-              src="/bat.png"
-              alt="Cricket Bat"
-              style={{
-                width: 'clamp(150px, 25vw, 300px)',
-                height: 'auto',
-                opacity: titleOpacity,
-                filter: 'drop-shadow(0 0 30px rgba(255,215,0,0.4))',
-                transform: `translateY(${(1 - titleOpacity) * 20}px)`,
-                margin: '0 auto',
-                display: 'block'
-              }}
-            />
-          ) : (
-            <h2 style={{
-              fontSize: activeSection.title.length <= 5
-                ? 'clamp(48px, 10vw, 120px)'
-                : 'clamp(32px, 6vw, 72px)',
-              fontWeight: 800,
-              fontFamily: "'Playfair Display', serif",
-              background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              lineHeight: 1.1,
-              letterSpacing: '-0.02em',
-              margin: 0,
-              opacity: titleOpacity,
-              filter: 'drop-shadow(0 0 30px rgba(255,215,0,0.4)) drop-shadow(0 0 60px rgba(255,165,0,0.2))',
-              transform: `translateY(${(1 - titleOpacity) * 20}px)`,
-            }}>
-              {activeSection.title}
-            </h2>
-          )}
+          <h2 style={{
+            fontSize: activeSection.title.length <= 5
+              ? 'clamp(40px, 8vw, 96px)'
+              : 'clamp(28px, 5vw, 64px)',
+            fontWeight: 800,
+            fontFamily: "'Playfair Display', serif",
+            background: 'linear-gradient(135deg, #FFD700 0%, #F5C518 50%, #FFA500 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            lineHeight: 1.05,
+            letterSpacing: '-0.02em',
+            margin: 0,
+            opacity: titleOpacity,
+            filter: 'drop-shadow(0 0 40px rgba(255,215,0,0.3))',
+            transform: `translateY(${(1 - titleOpacity) * 20}px)`,
+          }}>
+            {activeSection.title}
+          </h2>
   
           {/* Decorative line */}
           <div style={{
-            width: `${titleOpacity * 80}px`,
-            height: '1px',
-            background: 'linear-gradient(90deg, transparent, #FFD700, transparent)',
-            margin: '24px auto 0',
+            width: `${titleOpacity * 60}px`,
+            height: '2px',
+            background: isEven ? 'linear-gradient(90deg, #FFD700, transparent)' : 'linear-gradient(270deg, #FFD700, transparent)',
+            margin: isEven ? '24px 0 0 0' : '24px 0 0 auto',
             opacity: titleOpacity,
-            boxShadow: '0 0 8px rgba(255,215,0,0.3)',
+            boxShadow: '0 0 10px rgba(255,215,0,0.4)',
           }} />
         </div>
       </div>

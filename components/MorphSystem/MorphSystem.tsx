@@ -5,11 +5,11 @@
  * Core visual element of the experience.
  */
 
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { morphVertexShader, morphFragmentShader } from '@/lib/shaders';
-import { createMorphParticleSystem } from '@/lib/particleEngine';
+import { createMorphParticleSystemAsync } from '@/lib/particleEngine';
 import { getMorphState } from '@/hooks/useMorph';
 
 interface MorphSystemProps {
@@ -21,8 +21,16 @@ interface MorphSystemProps {
 export default function MorphSystem({ scrollProgressRef, mouseRef, mouseWorldRef }: MorphSystemProps) {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
 
-  const { geometry } = useMemo(() => {
-    return createMorphParticleSystem();
+  const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    createMorphParticleSystemAsync().then((sys) => {
+      if (active) {
+        setGeometry(sys.geometry);
+      }
+    });
+    return () => { active = false; };
   }, []);
 
   const uniforms = useMemo(
@@ -63,6 +71,8 @@ export default function MorphSystem({ scrollProgressRef, mouseRef, mouseWorldRef
       }
     }
   });
+
+  if (!geometry) return null;
 
   return (
     <points frustumCulled={false}>

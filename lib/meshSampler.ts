@@ -58,60 +58,74 @@ export function generateRandomPositions(count: number = PARTICLE_COUNT): Float32
  * Cricket Bat — Blade + Handle composite
  * Scale: ~5 units tall
  */
-export function generateBatPositions(count: number = PARTICLE_COUNT): Float32Array {
-  const parts: THREE.BufferGeometry[] = [];
+export async function generateBatPositionsAsync(count: number = PARTICLE_COUNT): Promise<{positions: Float32Array, colors: Float32Array}> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.src = '/bat.png'; // Load from public directory
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        // Fallback to empty array if no canvas
+        return resolve({ positions: new Float32Array(count * 3), colors: new Float32Array(count * 3) });
+      }
+      
+      const targetSize = 200;
+      const ratio = img.width / img.height;
+      canvas.width = ratio > 1 ? targetSize : targetSize * ratio;
+      canvas.height = ratio > 1 ? targetSize / ratio : targetSize;
+      
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      
+      const validPixels: {x: number, y: number, r: number, g: number, b: number}[] = [];
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          const idx = (y * canvas.width + x) * 4;
+          const alpha = imgData[idx + 3];
+          if (alpha > 50) { // Non-transparent pixel
+             validPixels.push({
+               x, y, 
+               r: imgData[idx] / 255, 
+               g: imgData[idx+1] / 255, 
+               b: imgData[idx+2] / 255
+             });
+          }
+        }
+      }
+      
+      const positions = new Float32Array(count * 3);
+      const colors = new Float32Array(count * 3);
+      if (validPixels.length === 0) return resolve({ positions, colors });
+      
+      for (let i = 0; i < count; i++) {
+        const pixel = validPixels[Math.floor(Math.random() * validPixels.length)];
+        
+        // Maintain correct aspect ratio based on targetSize
+        const px = ((pixel.x / canvas.width) - 0.5) * (canvas.width / targetSize) * 7.0;
+        const py = -((pixel.y / canvas.height) - 0.5) * (canvas.height / targetSize) * 7.0;
+        
+        // Add tiny random jitter
+        const jitterX = (Math.random() - 0.5) * (7.0 / targetSize);
+        const jitterY = (Math.random() - 0.5) * (7.0 / targetSize);
+        
+        positions[i * 3] = px + jitterX;
+        positions[i * 3 + 1] = py + jitterY;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 0.4; // slight thickness
 
-  // Blade: Main flat face
-  const bladeFace = new THREE.BoxGeometry(1.4, 3.2, 0.2, 8, 16, 4);
-  bladeFace.translate(0, 0.5, 0);
-  parts.push(bladeFace);
-
-  // Blade: Spine (thick back of the bat)
-  // Approximated by a triangular wedge (cylinder with 3 segments)
-  const spine = new THREE.CylinderGeometry(0.3, 0.3, 3.2, 3, 1);
-  spine.rotateZ(Math.PI / 2); // Lay it flat
-  spine.rotateX(Math.PI / 2); // Point triangle back
-  spine.scale(1, 0.5, 1); // Flatten it a bit
-  spine.rotateZ(Math.PI / 2); // Stand it upright
-  spine.translate(0, 0.5, -0.15);
-  parts.push(spine);
-
-  // Shoulders (tapering at the top of the blade)
-  const leftShoulder = new THREE.CylinderGeometry(0.1, 0.4, 0.6, 8);
-  leftShoulder.rotateZ(-Math.PI / 6);
-  leftShoulder.translate(-0.4, 2.1, 0);
-  parts.push(leftShoulder);
-
-  const rightShoulder = new THREE.CylinderGeometry(0.1, 0.4, 0.6, 8);
-  rightShoulder.rotateZ(Math.PI / 6);
-  rightShoulder.translate(0.4, 2.1, 0);
-  parts.push(rightShoulder);
-
-  // Handle: cylindrical with grip texture implied by ridges
-  const handle = new THREE.CylinderGeometry(0.16, 0.16, 2.0, 12, 16);
-  handle.translate(0, 3.1, 0);
-  parts.push(handle);
-
-  // Handle Pommel/Grip top
-  const gripTop = new THREE.CylinderGeometry(0.18, 0.16, 0.4, 12);
-  gripTop.translate(0, 4.2, 0);
-  parts.push(gripTop);
-
-  const merged = mergeGeometries(parts);
-  if (!merged) throw new Error('Failed to merge bat geometries');
-
-  // Center the entire bat
-  merged.center();
-
-  // Rotate to match the reference image exactly (pointing up and to the right, angled to show face and spine)
-  merged.rotateX(Math.PI / 8);   // Tilt slightly forward to show face
-  merged.rotateY(Math.PI / 6);   // Slight turn
-  merged.rotateZ(-Math.PI / 4);  // Point up and to the right
-  
-  // Scale down so the entire bat fits nicely on screen
-  merged.scale(0.65, 0.65, 0.65);
-
-  return sampleSurface(merged, count);
+        colors[i * 3] = pixel.r;
+        colors[i * 3 + 1] = pixel.g;
+        colors[i * 3 + 2] = pixel.b;
+      }
+      
+      resolve({ positions, colors });
+    };
+    img.onerror = () => {
+      console.warn("Could not load bat.png, falling back to empty positions");
+      resolve({ positions: new Float32Array(count * 3), colors: new Float32Array(count * 3) });
+    };
+  });
 }
 
 /**
@@ -331,10 +345,12 @@ export function generateTrophyPositions(count: number = PARTICLE_COUNT): Float32
  * Generate all morph targets at once.
  * Returns an object with Float32Array for each target.
  */
-export function generateAllTargets(count: number = PARTICLE_COUNT) {
+export async function generateAllTargetsAsync(count: number = PARTICLE_COUNT) {
+  const batData = await generateBatPositionsAsync(count);
   return {
     random: generateRandomPositions(count),
-    bat: generateBatPositions(count),
+    bat: batData.positions,
+    batColors: batData.colors,
     ball: generateBallPositions(count),
     helmet: generateHelmetPositions(count),
     stumps: generateStumpsPositions(count),

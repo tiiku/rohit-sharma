@@ -4,7 +4,7 @@
  */
 
 import * as THREE from 'three';
-import { generateAllTargets, PARTICLE_COUNT } from './meshSampler';
+import { generateAllTargetsAsync, PARTICLE_COUNT } from './meshSampler';
 
 export interface ParticleSystem {
   geometry: THREE.BufferGeometry;
@@ -15,11 +15,11 @@ export interface ParticleSystem {
 /**
  * Creates the main morph particle geometry with all target attributes.
  */
-export function createMorphParticleSystem(): ParticleSystem {
+export async function createMorphParticleSystemAsync(): Promise<ParticleSystem> {
   const count = PARTICLE_COUNT;
 
   // Generate all morph targets
-  const targets = generateAllTargets(count);
+  const targets = await generateAllTargetsAsync(count);
 
   // Create geometry
   const geometry = new THREE.BufferGeometry();
@@ -38,6 +38,7 @@ export function createMorphParticleSystem(): ParticleSystem {
   geometry.setAttribute('aPositionTarget3', new THREE.BufferAttribute(targets.stumps, 3));
   geometry.setAttribute('aPositionTarget4', new THREE.BufferAttribute(targets.bails, 3));
   geometry.setAttribute('aPositionTarget5', new THREE.BufferAttribute(targets.trophy, 3));
+  geometry.setAttribute('aBatColor', new THREE.BufferAttribute(targets.batColors, 3));
 
   // Per-particle size variation
   const sizes = new Float32Array(count);

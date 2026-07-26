@@ -115,10 +115,13 @@ attribute vec3 aPositionTarget5;
 attribute vec3 aPositionRandom;
 attribute float aSize;
 attribute float aRandom;
+attribute vec3 aBatColor;
 
 varying float vAlpha;
 varying float vDistToCenter;
 varying float vRandom;
+varying vec3 vBatColor;
+varying float vBatWeight;
 
 // Get target position for a given stage
 vec3 getTargetPosition(float stage) {
@@ -173,7 +176,8 @@ void main() {
   vec2 mouseDir = pos.xy - uMouseWorld.xy;
   float mouseDist = length(mouseDir);
   float holeRadius = 0.25;
-  if (mouseDist < holeRadius) {
+  // Apply hover effect only to the front part of the object
+  if (mouseDist < holeRadius && pos.z > 0.0) {
     vec2 pushDir = normalize(mouseDir + vec2(0.0001));
     float pushDist = (holeRadius - mouseDist); 
     pos.xy += pushDir * pushDist;
@@ -189,10 +193,16 @@ void main() {
   gl_PointSize = clamp(baseSize * distScale, 0.5, 6.0);
 
   // Varyings
-  float dist = length(mvPosition.xyz);
-  vAlpha = smoothstep(80.0, 3.0, dist) * (0.3 + aRandom * 0.5);
+  float distToCam = length(mvPosition.xyz);
+  vAlpha = smoothstep(80.0, 3.0, distToCam) * (0.3 + aRandom * 0.5);
   vDistToCenter = length(pos) / 10.0;
   vRandom = aRandom;
+  vBatColor = aBatColor;
+  
+  // Calculate how close we are to the bat stage (stage 1.0)
+  // t is the progress between current and next stage
+  float exactStage = stage + t;
+  vBatWeight = 1.0 - clamp(abs(exactStage - 1.0), 0.0, 1.0);
 }
 `;
 
@@ -202,6 +212,8 @@ uniform float uTime;
 varying float vAlpha;
 varying float vDistToCenter;
 varying float vRandom;
+varying vec3 vBatColor;
+varying float vBatWeight;
 
 void main() {
   // Soft circle with radial falloff
@@ -226,7 +238,7 @@ void main() {
   // Brighter particles near center of shape
   color = mix(color, warmWhite, smoothstep(0.5, 0.0, vDistToCenter) * 0.15);
 
-
+  // (Color mixing for bat image is removed as requested; keeping standard gold)
 
   // Dim overall to prevent additive blowout
   color *= 0.5;
