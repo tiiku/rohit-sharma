@@ -37,7 +37,7 @@ export default function MorphSystem({ scrollProgressRef, mouseRef, mouseWorldRef
     []
   );
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, camera, pointer }) => {
     if (materialRef.current) {
       const progress = scrollProgressRef.current ?? 0;
       const morphState = getMorphState(progress);
@@ -50,8 +50,16 @@ export default function MorphSystem({ scrollProgressRef, mouseRef, mouseWorldRef
       if (mouseRef.current) {
         materialRef.current.uniforms.uMouse.value.copy(mouseRef.current);
       }
-      if (mouseWorldRef.current) {
-        materialRef.current.uniforms.uMouseWorld.value.copy(mouseWorldRef.current);
+
+      // Calculate exact world position on z=0 plane matching cursor tip
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(pointer, camera);
+      const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+      const target = new THREE.Vector3();
+      raycaster.ray.intersectPlane(plane, target);
+      
+      if (target) {
+        materialRef.current.uniforms.uMouseWorld.value.copy(target);
       }
     }
   });

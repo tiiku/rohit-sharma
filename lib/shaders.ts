@@ -74,8 +74,8 @@ void main() {
 
   if (dist > 0.5) discard;
 
-  // Very soft falloff for tiny star-like appearance
-  float alpha = smoothstep(0.5, 0.0, dist) * vAlpha;
+  // Strict circle with anti-aliasing
+  float alpha = smoothstep(0.5, 0.45, dist) * vAlpha;
 
   // Golden color with warm variation
   vec3 color = mix(
@@ -170,14 +170,13 @@ void main() {
   pos.y += sin(orbitAngle) * orbitRadius;
 
   // === MOUSE INTERACTION ===
-  vec3 mouseDir = pos - uMouseWorld;
+  vec2 mouseDir = pos.xy - uMouseWorld.xy;
   float mouseDist = length(mouseDir);
-  float holeRadius = 2.0;
-
+  float holeRadius = 0.25;
   if (mouseDist < holeRadius) {
-    vec3 pushDir = normalize(mouseDir + vec3(0.0001));
+    vec2 pushDir = normalize(mouseDir + vec2(0.0001));
     float pushDist = (holeRadius - mouseDist); 
-    pos += pushDir * pushDist;
+    pos.xy += pushDir * pushDist;
   }
 
   // === FINAL POSITION ===
@@ -211,14 +210,8 @@ void main() {
 
   if (dist > 0.5) discard;
 
-  // Smooth alpha with soft edges
-  float alpha = smoothstep(0.5, 0.05, dist);
-
-  // Glowing edge effect — subtle
-  float edgeGlow = smoothstep(0.25, 0.45, dist) * smoothstep(0.5, 0.42, dist);
-  alpha += edgeGlow * 0.8;
-
-  alpha *= vAlpha;
+  // Strict circle with basic anti-aliasing
+  float alpha = smoothstep(0.5, 0.45, dist) * vAlpha;
 
   // Golden color palette
   vec3 gold = vec3(1.0, 0.843, 0.0);        // #FFD700
@@ -233,8 +226,7 @@ void main() {
   // Brighter particles near center of shape
   color = mix(color, warmWhite, smoothstep(0.5, 0.0, vDistToCenter) * 0.15);
 
-  // Edge particles get darker gold
-  color = mix(color, darkGold, edgeGlow * 0.3);
+
 
   // Dim overall to prevent additive blowout
   color *= 0.5;
