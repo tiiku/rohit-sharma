@@ -10,8 +10,8 @@ interface AudioPlayerProps {
 }
 
 export default function AudioPlayer({ videoId, startSeconds }: AudioPlayerProps) {
-  // Start visually muted because browsers block unmuted autoplay
-  const [isMuted, setIsMuted] = useState(true); 
+  // Start visually unmuted as requested
+  const [isMuted, setIsMuted] = useState(false); 
   const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const playerRef = useRef<any>(null);
@@ -34,34 +34,13 @@ export default function AudioPlayer({ videoId, startSeconds }: AudioPlayerProps)
     playerRef.current = event.target;
     event.target.setVolume(50); 
     
-    // We start it muted internally to guarantee the video at least starts playing/buffering
-    event.target.mute();
+    // Play unmuted automatically
+    event.target.unMute();
     event.target.playVideo();
     
     setIsReady(true);
     setIsPlaying(true);
   };
-
-  // Ensure sound turns on upon the very first user interaction
-  useEffect(() => {
-    const handleFirstInteraction = () => {
-      if (playerRef.current && isReady) {
-        // Unmute the video, play it, and update the UI icon to "Sound On"
-        playerRef.current.unMute();
-        playerRef.current.playVideo();
-        setIsMuted(false);
-        setIsPlaying(true);
-      }
-      // Remove listeners after first interaction
-      window.removeEventListener('click', handleFirstInteraction);
-    };
-
-    window.addEventListener('click', handleFirstInteraction);
-
-    return () => {
-      window.removeEventListener('click', handleFirstInteraction);
-    };
-  }, [isReady]);
 
   const toggleMute = () => {
     if (!playerRef.current || !isReady) return;
