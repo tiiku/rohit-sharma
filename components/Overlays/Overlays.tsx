@@ -178,24 +178,40 @@ export default function Overlays() {
           </p>
   
           {/* Title (Figure) - Comes after */}
-          <h2 style={{
-            fontSize: activeSection.title.length <= 5
-              ? 'clamp(48px, 10vw, 120px)'
-              : 'clamp(32px, 6vw, 72px)',
-            fontWeight: 800,
-            fontFamily: "'Playfair Display', serif",
-            background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            lineHeight: 1.1,
-            letterSpacing: '-0.02em',
-            margin: 0,
-            opacity: titleOpacity,
-            filter: 'drop-shadow(0 0 30px rgba(255,215,0,0.4)) drop-shadow(0 0 60px rgba(255,165,0,0.2))',
-            transform: `translateY(${(1 - titleOpacity) * 20}px)`,
-          }}>
-            {activeSection.title}
-          </h2>
+          {activeSection.id === 'bat' ? (
+            <img
+              src="/bat.png"
+              alt="Cricket Bat"
+              style={{
+                width: 'clamp(150px, 25vw, 300px)',
+                height: 'auto',
+                opacity: titleOpacity,
+                filter: 'drop-shadow(0 0 30px rgba(255,215,0,0.4))',
+                transform: `translateY(${(1 - titleOpacity) * 20}px)`,
+                margin: '0 auto',
+                display: 'block'
+              }}
+            />
+          ) : (
+            <h2 style={{
+              fontSize: activeSection.title.length <= 5
+                ? 'clamp(48px, 10vw, 120px)'
+                : 'clamp(32px, 6vw, 72px)',
+              fontWeight: 800,
+              fontFamily: "'Playfair Display', serif",
+              background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              lineHeight: 1.1,
+              letterSpacing: '-0.02em',
+              margin: 0,
+              opacity: titleOpacity,
+              filter: 'drop-shadow(0 0 30px rgba(255,215,0,0.4)) drop-shadow(0 0 60px rgba(255,165,0,0.2))',
+              transform: `translateY(${(1 - titleOpacity) * 20}px)`,
+            }}>
+              {activeSection.title}
+            </h2>
+          )}
   
           {/* Decorative line */}
           <div style={{
