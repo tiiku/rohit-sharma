@@ -172,7 +172,7 @@ void main() {
   // === MOUSE INTERACTION ===
   vec3 mouseDir = pos - uMouseWorld;
   float mouseDist = length(mouseDir);
-  float holeRadius = 0.4; // roughly 4px equivalent in this projection
+  float holeRadius = 2.0;
 
   if (mouseDist < holeRadius) {
     vec3 pushDir = normalize(mouseDir + vec3(0.0001));

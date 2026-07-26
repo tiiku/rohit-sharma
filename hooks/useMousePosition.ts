@@ -39,10 +39,15 @@ export function useMousePosition() {
     const lerp = () => {
       mouseRef.current.lerp(targetRef.current, 0.05);
 
-      // Project to world space (simple approximation at z=0 plane)
+      // Camera parameters from Scene: fov = 60, z = 20
+      const vFov = (60 * Math.PI) / 180;
+      const height = 2 * Math.tan(vFov / 2) * 20;
+      const width = height * (window.innerWidth / window.innerHeight);
+
+      // Project to world space (z=0 plane)
       mouseWorldRef.current.set(
-        mouseRef.current.x * 10,
-        mouseRef.current.y * 6,
+        (mouseRef.current.x * width) / 2,
+        (mouseRef.current.y * height) / 2,
         0
       );
 

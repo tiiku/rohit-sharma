@@ -54,18 +54,12 @@ export default function AudioPlayer({ videoId, startSeconds }: AudioPlayerProps)
       }
       // Remove listeners after first interaction
       window.removeEventListener('click', handleFirstInteraction);
-      window.removeEventListener('scroll', handleFirstInteraction);
-      window.removeEventListener('keydown', handleFirstInteraction);
     };
 
     window.addEventListener('click', handleFirstInteraction);
-    window.addEventListener('scroll', handleFirstInteraction);
-    window.addEventListener('keydown', handleFirstInteraction);
 
     return () => {
       window.removeEventListener('click', handleFirstInteraction);
-      window.removeEventListener('scroll', handleFirstInteraction);
-      window.removeEventListener('keydown', handleFirstInteraction);
     };
   }, [isReady]);
 
