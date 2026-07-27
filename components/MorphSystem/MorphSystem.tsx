@@ -53,7 +53,7 @@ export default function MorphSystem({ scrollProgressRef, mouseRef, mouseWorldRef
       const progress = scrollProgressRef.current ?? 0;
       const morphState = getMorphState(progress);
 
-      const numStages = 7;
+      const numStages = 8;
       const cycleLength = 1.0 / numStages;
       const cycleIdx = Math.floor(Math.min(progress, 0.999) / cycleLength);
 

@@ -41,6 +41,9 @@ export default function Home() {
 
     lenisRef.current = lenis;
 
+    // Start with scroll locked until loader finishes
+    lenis.stop();
+
     function raf(time: number) {
       lenis.raf(time);
       requestAnimationFrame(raf);
@@ -52,6 +55,19 @@ export default function Home() {
       lenis.destroy();
     };
   }, []);
+
+  // Control scrolling based on loaded state
+  useEffect(() => {
+    if (lenisRef.current) {
+      if (loaded) {
+        lenisRef.current.start();
+        document.body.style.overflow = 'auto';
+      } else {
+        lenisRef.current.stop();
+        document.body.style.overflow = 'hidden';
+      }
+    }
+  }, [loaded]);
 
   // Progress bar tracker
   const scrollProgressRef = useRef(0);
@@ -72,39 +88,33 @@ export default function Home() {
 
   return (
     <>
-      {/* Loading screen */}
+      {/* Loading screen covers everything while background components mount and load data */}
       <Loader onComplete={handleLoaderComplete} />
 
-      {/* 3D Scene (lazy loaded) */}
-      {loaded && (
-        <Suspense fallback={null}>
-          <Scene />
-        </Suspense>
-      )}
+      {/* 3D Scene (lazy loaded) - rendered immediately so it can initialize */}
+      <Suspense fallback={null}>
+        <Scene />
+      </Suspense>
 
       {/* Scroll spacer */}
       <div className="scroll-spacer" aria-hidden="true" />
 
-      {/* Text overlays */}
-      {loaded && <Overlays />}
+      {/* Text overlays - use opacity transition or just keep hidden behind Loader */}
+      <Overlays />
 
       {/* Scroll indicator */}
-      {loaded && <ScrollIndicator />}
-
-
+      <ScrollIndicator />
 
       {/* Watermark */}
-      {loaded && (
-        <div className="watermark">
-          Tribute to Rohit Sharma
-        </div>
-      )}
+      <div className="watermark">
+        Tribute to Rohit Sharma
+      </div>
 
       {/* Background Music */}
-      {loaded && <AudioPlayer scrollProgressRef={scrollProgressRef} />}
+      <AudioPlayer scrollProgressRef={scrollProgressRef} />
 
       {/* Finale Memory Flashback */}
-      {loaded && <MemoryFlashback scrollProgressRef={scrollProgressRef} />}
+      <MemoryFlashback scrollProgressRef={scrollProgressRef} />
     </>
   );
 }

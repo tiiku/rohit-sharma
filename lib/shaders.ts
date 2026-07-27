@@ -17,6 +17,7 @@ ${simplexNoise3D}
 
 uniform float uTime;
 uniform float uScrollProgress;
+uniform float uCameraZ;
 uniform vec2 uMouse;
 
 attribute float aSize;
@@ -50,10 +51,12 @@ void main() {
   float scrollDistance = uScrollProgress * 3000.0; // Much faster travel
   pos.z += scrollDistance;
   
-  // Wrap Z space to recycle particles. Original Z span is ~ [-150, 50].
-  // Wrapping interval is 200 units.
+  // Wrap Z space to recycle particles relative to the camera.
+  // The camera looks towards -Z. We want particles to wrap from slightly behind camera to far ahead.
+  float relativeZ = pos.z - uCameraZ;
   float zSpan = 200.0;
-  pos.z = mod(pos.z + 150.0, zSpan) - 150.0;
+  relativeZ = mod(relativeZ + 150.0, zSpan) - 150.0;
+  pos.z = uCameraZ + relativeZ;
 
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
   gl_Position = projectionMatrix * mvPosition;
@@ -132,6 +135,8 @@ varying vec3 vBatColor;
 varying float vBatWeight;
 varying float vTrophyWeight;
 varying float vBlurriness;
+varying float vBrightness;
+varying float vVisibility;
 
 // Get target position for a given stage
 vec3 getTargetPosition(float stage) {
@@ -142,13 +147,18 @@ vec3 getTargetPosition(float stage) {
   if (s == 3) return aPositionTarget1; // Ball
   if (s == 4) return aPositionTarget2; // Helmet
   if (s == 5) return aPositionTarget3; // Stumps
-  if (s == 6) return aPositionTarget4; // Bails
+  if (s == 6) return aPositionTarget4; // Bails / Winners cup
   if (s == 7) return aPositionTarget5; // Trophy
   return aPositionRandom;
 }
 
+// Spring damping easing function (elastic out)
+// Removed bouncy effect as per user request
+float easeOutCubic(float t) {
+  return 1.0 - pow(1.0 - t, 3.0);
+}
+
 void main() {
-  // Determine current and next morph targets
   float stage = uMorphStage;
   float nextStage = uMorphNextStage;
   float t = uMorphProgress;
@@ -156,34 +166,39 @@ void main() {
   vec3 currentTarget = getTargetPosition(stage);
   vec3 nextTarget = getTargetPosition(nextStage);
 
-  // Smooth cubic interpolation between targets
-  float smoothT = t * t * (3.0 - 2.0 * t);
+  // Randomize arrival times so particles form the figure organically and randomly getting closer
+  // We offset the 't' value using aRandom. We map t (0 to 1) to a wider range so all particles
+  // eventually reach 1.0.
+  float particleT = clamp(t * 1.5 - aRandom * 0.5, 0.0, 1.0);
+  float smoothT = easeOutCubic(particleT);
+  
   vec3 pos = mix(currentTarget, nextTarget, smoothT);
 
-  // === ALIVE MOTION ===
+  // === ALIVE MOTION (Premium Organic Feel) ===
   
-  // Calculate how close we are to a transition (0 = fully formed, 1 = exactly midway)
   float isTransition = sin(t * 3.14159265);
   vBlurriness = isTransition;
 
-  // Simplex noise displacement (extremely subtle, just for slight organic feel)
-  float noiseScale = 0.6;
-  float noiseSpeed = uTime * 0.25;
+  // Micro-turbulence using simplex noise (Max idle movement 1-2px)
+  // Scale down the noise amplitude significantly for stability
+  float noiseScale = 0.8;
+  float noiseSpeed = uTime * 0.15;
   float nx = snoise(vec3(pos.x * noiseScale, pos.y * noiseScale, noiseSpeed + aRandom * 100.0));
   float ny = snoise(vec3(pos.y * noiseScale, pos.z * noiseScale, noiseSpeed + aRandom * 200.0));
   float nz = snoise(vec3(pos.z * noiseScale, pos.x * noiseScale, noiseSpeed + aRandom * 300.0));
 
-  // Constant low noise, no chaotic movement during transitions
-  float noiseStrength = 0.02;
-  pos += vec3(nx, ny, nz) * noiseStrength;
+  // Limit noise to very tiny values (simulating 1-2px on screen)
+  float noiseAmplitude = 0.05 + aRandom * 0.05; 
+  pos += vec3(nx, ny, nz) * noiseAmplitude;
 
-  // Breathing effect (subtle scale oscillation)
-  float breath = sin(uTime * 0.8 + aRandom * 6.28) * uBreathing;
-  pos *= 1.0 + breath * 0.015;
+  // Continuous breathing effect (scale oscillation)
+  float breathPhase = uTime * (1.0 + aRandom * 0.5) + aRandom * 6.28;
+  float breath = sin(breathPhase) * uBreathing;
+  pos *= 1.0 + breath * 0.02;
 
-  // Slight orbital motion
-  float orbitAngle = uTime * 0.15 + aRandom * 6.28;
-  float orbitRadius = 0.03 * (1.0 - smoothT * 0.8);
+  // Subtle orbital drift (adds volume)
+  float orbitAngle = uTime * 0.1 + aRandom * 6.28;
+  float orbitRadius = 0.02 * (1.0 - smoothT * 0.5); // Less orbit when settling
   pos.x += cos(orbitAngle) * orbitRadius;
   pos.y += sin(orbitAngle) * orbitRadius;
 
@@ -191,25 +206,47 @@ void main() {
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
   gl_Position = projectionMatrix * mvPosition;
 
-  // Camera distance-based sizing — keep particles small and defined
-  float baseSize = aSize * (1.0 + breath * 0.1);
-  float distScale = 80.0 / -mvPosition.z;
-  gl_PointSize = clamp(baseSize * distScale, 0.5, 6.0);
+  // STRICT PARTICLE SIZING
+  // Mostly tiny (1-2px) with a few slightly larger (up to 3px)
+  // We manipulate baseSize to favor small values heavily
+  float randomSizeCurve = pow(aRandom, 3.0); // Skews distribution to 0
+  float pixelBaseSize = 1.0 + randomSizeCurve * 2.0; // 1 to 3 pixels
+  
+  // Apply perspective distance attenuation, but clamp it carefully
+  float distScale = 50.0 / -mvPosition.z;
+  gl_PointSize = clamp(pixelBaseSize * distScale, 0.5, 3.5);
 
   // Varyings
   float distToCam = length(mvPosition.xyz);
-  vAlpha = smoothstep(80.0, 3.0, distToCam) * (0.3 + aRandom * 0.5);
+  // Organic randomized opacity
+  float baseAlpha = 0.2 + aRandom * 0.8;
+  // Dynamic brightness flickering (lifetime effect)
+  vBrightness = 0.5 + 0.5 * sin(uTime * (2.0 + aRandom * 2.0) + aRandom * 10.0);
+  
+  vAlpha = smoothstep(80.0, 3.0, distToCam) * baseAlpha;
   vDistToCenter = length(pos) / 10.0;
   vRandom = aRandom;
   vBatColor = aBatColor;
   
-  // Calculate how close we are to the bat stage (stage 2.0 now)
-  // t is the progress between current and next stage
   float exactStage = stage + t;
   vBatWeight = 1.0 - clamp(abs(exactStage - 2.0), 0.0, 1.0);
-  
-  // Calculate how close we are to the trophy stage (stage 7.0)
   vTrophyWeight = 1.0 - clamp(abs(exactStage - 7.0), 0.0, 1.0);
+
+  // Visibility fade to prevent the particles from popping in as a giant white cloud
+  // when recycling the system. They are invisible when completely dispersed (stage 0).
+  float visibility = 1.0;
+  if (stage == 0.0 && nextStage == 0.0) {
+    visibility = 0.0;
+  } else if (stage == 0.0) {
+    visibility = smoothT; // Fade in as they form the figure
+  } else if (nextStage == 0.0) {
+    visibility = 1.0 - smoothT; // Fade out as they disperse back to random
+  }
+  
+  // Also fade them out if they are too close to the camera to prevent clipping
+  float camFade = smoothstep(2.0, 6.0, -mvPosition.z);
+  
+  vVisibility = visibility * camFade;
 }
 `;
 
@@ -223,37 +260,45 @@ varying vec3 vBatColor;
 varying float vBatWeight;
 varying float vTrophyWeight;
 varying float vBlurriness;
+varying float vBrightness;
+varying float vVisibility;
 
 void main() {
-  // Soft circle with radial falloff
+  // Crisp circular particle with sharp edges to minimize bloom and look premium
   vec2 center = gl_PointCoord - vec2(0.5);
   float dist = length(center);
 
+  // Strict cut-off for perfect circles
   if (dist > 0.5) discard;
 
-  // Sharp circle when formed (0.45), very soft circle when transitioning (0.1)
-  float innerEdge = mix(0.48, 0.1, vBlurriness);
-  float alpha = smoothstep(0.5, innerEdge, dist) * vAlpha;
+  // Sharp anti-aliased edge, not a soft glowing blob
+  float innerEdge = mix(0.48, 0.2, vBlurriness * 0.5); // Slightly softer only during transitions
+  
+  // Apply visibility fade
+  float alpha = smoothstep(0.5, innerEdge, dist) * vAlpha * vVisibility;
 
-  // Base white color
+  // Current color palette (Golden / Amber / White)
   vec3 white = vec3(1.0, 1.0, 1.0);
-
-  // Golden color palette
   vec3 gold = vec3(1.0, 0.843, 0.0);        // #FFD700
   vec3 amber = vec3(1.0, 0.647, 0.0);       // #FFA500
 
-  // Color variation based on particle properties
+  // Mix colors organically
   float colorMix = sin(vRandom * 6.28 + uTime * 0.3) * 0.5 + 0.5;
-  vec3 goldenColor = mix(gold, amber, colorMix * 0.4);
+  vec3 goldenColor = mix(gold, amber, colorMix * 0.6);
 
-  // Mix white and gold based on trophy weight
-  vec3 color = mix(white, goldenColor, vTrophyWeight);
+  // Incorporate trophy weight for specific coloring
+  vec3 color = mix(white, goldenColor, vTrophyWeight + 0.2); // Always a hint of gold
 
-  // Brighter particles near center of shape
-  color = mix(color, vec3(1.0, 1.0, 1.0), smoothstep(0.5, 0.0, vDistToCenter) * 0.15);
+  // Apply per-particle brightness variation
+  color *= (0.8 + 0.4 * vBrightness);
+  
+  // Add a bright core to some larger particles to look like tiny LEDs / stars
+  if (vRandom > 0.95 && dist < 0.2) {
+      color = mix(color, vec3(1.0), 0.8);
+  }
 
-  // Dim overall to prevent additive blowout
-  color *= 0.6;
+  // Keep colors controlled to avoid additive blending blowing out the screen
+  color *= 0.7;
 
   gl_FragColor = vec4(color, alpha);
 }

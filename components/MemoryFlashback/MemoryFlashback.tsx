@@ -32,8 +32,8 @@ export default function MemoryFlashback({ scrollProgressRef }: MemoryFlashbackPr
     const updateOpacity = () => {
       const p = scrollProgressRef.current ?? 0;
       if (containerRef.current) {
-        // Fade in from 0.85 to 0.95
-        const startFade = 0.85;
+        // Fade in from 0.88 to 0.95 (After the Trophy is fully zoomed in)
+        const startFade = 0.88;
         const endFade = 0.95;
         let opacity = 0;
         

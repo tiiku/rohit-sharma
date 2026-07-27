@@ -28,14 +28,16 @@ export default function ParticleUniverse({ scrollProgressRef, mouseRef }: Partic
       uTime: { value: 0 },
       uScrollProgress: { value: 0 },
       uMouse: { value: new THREE.Vector2(0, 0) },
+      uCameraZ: { value: 12 },
     }),
     []
   );
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, camera }) => {
     if (materialRef.current) {
       materialRef.current.uniforms.uTime.value = clock.getElapsedTime();
       materialRef.current.uniforms.uScrollProgress.value = scrollProgressRef.current ?? 0;
+      materialRef.current.uniforms.uCameraZ.value = camera.position.z;
       if (mouseRef.current) {
         materialRef.current.uniforms.uMouse.value.copy(mouseRef.current);
       }

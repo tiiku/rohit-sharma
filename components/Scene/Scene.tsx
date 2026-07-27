@@ -43,9 +43,9 @@ function SceneContent() {
       {/* Subtle bloom postprocessing */}
       <EffectComposer enableNormalPass={false}>
         <Bloom
-          luminanceThreshold={0.8}
-          luminanceSmoothing={0.4}
-          intensity={0.4}
+          luminanceThreshold={0.9}
+          luminanceSmoothing={0.1}
+          intensity={0.15}
           mipmapBlur
         />
       </EffectComposer>
