@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import YouTube, { YouTubeEvent, YouTubeProps } from 'react-youtube';
 import { Volume2, VolumeX } from 'lucide-react';
 
@@ -9,7 +9,7 @@ interface AudioPlayerProps {
 }
 
 export default function AudioPlayer({ scrollProgressRef }: AudioPlayerProps) {
-  const [isMuted, setIsMuted] = useState(false); 
+  const [isMuted, setIsMuted] = useState(true); 
   const [readyA, setReadyA] = useState(false);
   const [readyB, setReadyB] = useState(false);
   
@@ -19,12 +19,12 @@ export default function AudioPlayer({ scrollProgressRef }: AudioPlayerProps) {
 
   const optsA: YouTubeProps['opts'] = {
     height: '0', width: '0',
-    playerVars: { autoplay: 1, controls: 0, disablekb: 1, fs: 0, loop: 1, modestbranding: 1, start: 155 },
+    playerVars: { autoplay: 1, mute: 1, controls: 0, disablekb: 1, fs: 0, loop: 1, modestbranding: 1, start: 155 },
   };
 
   const optsB: YouTubeProps['opts'] = {
     height: '0', width: '0',
-    playerVars: { autoplay: 1, controls: 0, disablekb: 1, fs: 0, loop: 1, modestbranding: 1, mute: 1 },
+    playerVars: { autoplay: 0, mute: 1, controls: 0, disablekb: 1, fs: 0, loop: 1, modestbranding: 1 },
   };
 
   const isPlayingBRef = useRef(false);
@@ -32,65 +32,81 @@ export default function AudioPlayer({ scrollProgressRef }: AudioPlayerProps) {
   const onReadyA = (event: YouTubeEvent) => {
     playerA.current = event.target;
     event.target.setVolume(50);
-    event.target.unMute();
+    event.target.mute();
     event.target.playVideo();
     setReadyA(true);
   };
 
   const onReadyB = (event: YouTubeEvent) => {
     playerB.current = event.target;
-    // Let it play silently in the background
+    event.target.setVolume(0);
+    event.target.mute();
+    // Do NOT play yet, wait until we scroll to the climax
     setReadyB(true);
   };
 
-  const toggleMute = () => {
+  const toggleMute = useCallback(() => {
     if (isMuted) {
       if (playerA.current) playerA.current.unMute();
-      if (playerB.current && isPlayingBRef.current) playerB.current.unMute();
+      if (playerB.current) playerB.current.unMute();
       setIsMuted(false);
     } else {
       if (playerA.current) playerA.current.mute();
       if (playerB.current) playerB.current.mute();
       setIsMuted(true);
     }
-  };
+  }, [isMuted]);
 
+  // Automatically unmute on first scroll or other interaction
+  useEffect(() => {
+    const handleInteraction = () => {
+      if (isMuted) {
+        toggleMute();
+      }
+      const events = ['scroll', 'wheel', 'touchstart', 'click', 'keydown'];
+      events.forEach((e) => window.removeEventListener(e, handleInteraction));
+    };
+
+    const events = ['scroll', 'wheel', 'touchstart', 'click', 'keydown'];
+    events.forEach((e) => window.addEventListener(e, handleInteraction, { once: true }));
+
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, handleInteraction));
+    };
+  }, [isMuted, toggleMute]);
+
+  // Crossfader loop
   useEffect(() => {
     const updateVolumes = () => {
       const p = scrollProgressRef.current ?? 0;
       
-      const climaxStart = 0.80;
-      const climaxEnd = 0.95;
-      
-      let climaxProgress = 0;
-      if (p > climaxStart) {
-        climaxProgress = Math.min((p - climaxStart) / (climaxEnd - climaxStart), 1);
-      }
-
-      if (!isMuted) {
-        // Player A Logic
-        if (playerA.current && readyA) {
-          const volA = Math.floor((1 - climaxProgress) * 50);
-          playerA.current.setVolume(volA);
-        }
-
-        // Player B Logic
-        if (playerB.current && readyB) {
-          if (p > climaxStart) {
-            if (!isPlayingBRef.current) {
-              playerB.current.seekTo(0);
-              playerB.current.unMute();
-              isPlayingBRef.current = true;
-            }
-          } else {
-            if (isPlayingBRef.current) {
-              playerB.current.mute();
-              isPlayingBRef.current = false;
-            }
+      if (playerA.current && playerB.current && readyA && readyB && !isMuted) {
+        // Assume climax starts near 0.85 progress
+        const climaxStart = 0.80;
+        const climaxEnd = 0.95;
+        
+        let climaxProgress = 0;
+        if (p > climaxStart) {
+          climaxProgress = Math.min((p - climaxStart) / (climaxEnd - climaxStart), 1);
+          
+          // Start playing B if it isn't already
+          if (!isPlayingBRef.current) {
+            playerB.current.playVideo();
+            isPlayingBRef.current = true;
           }
-          const volB = Math.floor(climaxProgress * 80);
-          playerB.current.setVolume(volB);
+        } else {
+          // Pause B if we scroll back up
+          if (isPlayingBRef.current) {
+            playerB.current.pauseVideo();
+            isPlayingBRef.current = false;
+          }
         }
+
+        const volA = Math.floor((1 - climaxProgress) * 50);
+        const volB = Math.floor(climaxProgress * 80); // Climax gets louder
+
+        playerA.current.setVolume(volA);
+        playerB.current.setVolume(volB);
       }
       rafRef.current = requestAnimationFrame(updateVolumes);
     };

@@ -19,7 +19,7 @@ const SECTIONS: Section[] = [
   {
     id: 'intro-text',
     title: 'ROHIT SHARMA',
-    subtitle: 'THE HITMAN',
+    subtitle: 'The Hitman',
     startProgress: 0.085,
     endProgress: 0.135,
   },

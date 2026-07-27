@@ -15,14 +15,13 @@ export function getMorphState(progress: number): MorphState {
     return { stage: 7, nextStage: 0, morphT: 1, cameraPhase: 1 };
   }
 
-  const numStages = 8; // Pull Shot, Bat, Ball, Helmet, Stumps, Bails, Trophy, Flashback
+  const numStages = 7; // 1: Pull Shot, 2: Bat, 3: Ball, 4: Helmet, 5: Stumps, 6: Bails, 7: Trophy
   const cycleLength = 1.0 / numStages;
 
-  const cycleIdx = Math.floor(p / cycleLength); // 0 to 7
+  const cycleIdx = Math.floor(p / cycleLength); // 0 to 6
   const localP = (p - cycleIdx * cycleLength) / cycleLength; // 0 to 1 within cycle
 
-  // Clamp targetShape to 7 so it doesn't request a non-existent shape for cycle 8
-  const targetShape = cycleIdx === 7 ? 0 : cycleIdx + 1;
+  const targetShape = cycleIdx + 1; // 1 to 7
 
   let stage = 0;
   let nextStage = 0;
@@ -34,19 +33,19 @@ export function getMorphState(progress: number): MorphState {
     nextStage = targetShape;
     morphT = localP / 0.20;
   }
-  // 0.20 - 0.35: Hold targetShape (Fully formed as camera approaches from Z=6 to Z=1.5)
-  else if (localP < 0.35) {
+  // 0.20 - 0.65: Hold targetShape (Fully formed as camera approaches and text is displayed)
+  else if (localP < 0.65) {
     stage = targetShape;
     nextStage = targetShape;
     morphT = 0;
   }
-  // 0.35 - 0.60: targetShape -> Galaxy (Disperses just as camera flies inside it)
-  else if (localP < 0.60) {
+  // 0.65 - 0.85: targetShape -> Galaxy (Disperses just as camera flies inside it)
+  else if (localP < 0.85) {
     stage = targetShape;
     nextStage = 0;
-    morphT = (localP - 0.35) / 0.25;
+    morphT = (localP - 0.65) / 0.20;
   }
-  // 0.60 - 1.0: Hold Galaxy (0) (Text will be visible here)
+  // 0.85 - 1.0: Hold Galaxy (0)
   else {
     stage = 0;
     nextStage = 0;
