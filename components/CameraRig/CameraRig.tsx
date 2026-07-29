@@ -88,7 +88,7 @@ export default function CameraRig({ scrollProgressRef, mouseRef }: CameraRigProp
 
     // Smoothly update camera
     camera.position.set(targetX, targetY, cameraZ);
-    
+
     // Look slightly ahead
     camera.lookAt(targetX, targetY, cameraZ - 10);
   });

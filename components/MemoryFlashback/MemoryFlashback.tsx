@@ -130,6 +130,10 @@ export default function MemoryFlashback({ scrollProgressRef }: MemoryFlashbackPr
       <div style={{
         position: 'absolute',
         bottom: '8%',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        textAlign: 'center',
+        width: '100%',
         color: '#CAB061',
         fontFamily: "var(--font-cinzel), 'Cinzel', serif",
         fontSize: '28px',

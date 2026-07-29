@@ -7,6 +7,11 @@ export interface MorphState {
   cameraPhase: number;
 }
 
+// Cubic ease-in-out for buttery smooth transitions
+function easeInOutCubic(x: number): number {
+  return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+}
+
 export function getMorphState(progress: number): MorphState {
   // Clamp
   const p = Math.min(Math.max(progress, 0), 1);
@@ -31,7 +36,7 @@ export function getMorphState(progress: number): MorphState {
   if (localP < 0.20) {
     stage = 0;
     nextStage = targetShape;
-    morphT = localP / 0.20;
+    morphT = easeInOutCubic(localP / 0.20);
   }
   // 0.20 - 0.60: Hold targetShape (Camera passes through it at 0.40)
   else if (localP < 0.60) {
@@ -43,7 +48,7 @@ export function getMorphState(progress: number): MorphState {
   else if (localP < 0.80) {
     stage = targetShape;
     nextStage = 0;
-    morphT = (localP - 0.60) / 0.20;
+    morphT = easeInOutCubic((localP - 0.60) / 0.20);
   }
   // 0.80 - 1.0: Hold Galaxy (Just stars, ready to snap for next cycle)
   else {

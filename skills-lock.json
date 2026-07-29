@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "hyperframes-animation": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes-animation/SKILL.md",
+      "computedHash": "0054da496e1de0bedf44d244bef963c6fc1a7d8ae9a0ced7919c9d983dee30e2"
+    }
+  }
+}

@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { MeshSurfaceSampler } from 'three/examples/jsm/math/MeshSurfaceSampler.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 
 const PARTICLE_COUNT = 30000;
 
@@ -34,113 +35,311 @@ export function generateRandomPositions(count: number = PARTICLE_COUNT): Float32
  * Uses a shuffle technique over valid pixels to emulate blue-noise / poisson disk
  * distribution, ensuring no clumping and ~40-50% occupancy.
  */
-async function generateFromImageAsync(imagePath: string, count: number): Promise<{positions: Float32Array, colors: Float32Array}> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.src = imagePath;
-    img.crossOrigin = 'Anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return resolve({ positions: new Float32Array(count * 3), colors: new Float32Array(count * 3) });
-      
-      // Large canvas to ensure we have way more valid pixels than `count`
-      // This prevents particles from sharing the exact same pixel coordinate.
-      const targetSize = 600;
-      const ratio = img.width / img.height;
-      canvas.width = ratio > 1 ? targetSize : targetSize * ratio;
-      canvas.height = ratio > 1 ? targetSize / ratio : targetSize;
-      
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-      
-      const validPixels: {x: number, y: number, r: number, g: number, b: number}[] = [];
-      for (let y = 0; y < canvas.height; y++) {
-        for (let x = 0; x < canvas.width; x++) {
-          const idx = (y * canvas.width + x) * 4;
-          const r = imgData[idx];
-          const g = imgData[idx+1];
-          const b = imgData[idx+2];
-          
-          // Check if pixel is white (silhouette on black background)
-          if (r + g + b > 300) {
-             validPixels.push({
-               x, y, 
-               r: r / 255, 
-               g: g / 255, 
-               b: b / 255
-             });
+function generateFromGeometry(geometry: THREE.BufferGeometry, count: number): { positions: Float32Array, colors: Float32Array } {
+  const material = new THREE.MeshBasicMaterial();
+  const mesh = new THREE.Mesh(geometry, material);
+  const sampler = new MeshSurfaceSampler(mesh).build();
+
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const tempPosition = new THREE.Vector3();
+  const tempNormal = new THREE.Vector3();
+
+  for (let i = 0; i < count; i++) {
+    let accepted = false;
+    let attempts = 0;
+
+    // Rejection sampling based on normals to create a hollow wireframe / edge-lit look
+    while (!accepted && attempts < 50) {
+      sampler.sample(tempPosition, tempNormal);
+
+      // Calculate how much the surface points toward or away from the camera
+      // normal.z = 1 (facing camera), normal.z = 0 (perpendicular edge)
+      const edgeFactor = 1.0 - Math.abs(tempNormal.z);
+
+      // Sharpen the edge probability to heavily favor the silhouette borders
+      let prob = Math.pow(edgeFactor, 1.5);
+
+      // Always leave a tiny 5% chance so the inside isn't 100% empty
+      prob = Math.max(prob, 0.05);
+
+      if (Math.random() < prob) {
+        accepted = true;
+      }
+      attempts++;
+    }
+
+    positions[i * 3] = tempPosition.x;
+    positions[i * 3 + 1] = tempPosition.y;
+    positions[i * 3 + 2] = tempPosition.z;
+
+    // Default color to white
+    colors[i * 3] = 1.0;
+    colors[i * 3 + 1] = 1.0;
+    colors[i * 3 + 2] = 1.0;
+  }
+
+  return { positions, colors };
+}
+
+// --- Procedural 3D Generators ---
+
+async function createBatGeometry() {
+  try {
+    const loader = new STLLoader();
+    const geom = await loader.loadAsync('/BAT_assembly.STL');
+    geom.center();
+
+    geom.computeBoundingBox();
+    const size = new THREE.Vector3();
+    geom.boundingBox!.getSize(size);
+
+    // Force alignment to Y-axis (vertical)
+    const maxAxis = size.x > size.y ? (size.x > size.z ? 'x' : 'z') : (size.y > size.z ? 'y' : 'z');
+    if (maxAxis === 'x') geom.rotateZ(Math.PI / 2);
+    else if (maxAxis === 'z') geom.rotateX(Math.PI / 2);
+
+    // Show the back of the bat, but turned 30 degrees to explicitly show the side thickness.
+    // This guarantees it looks like a thick 3D object, not a flat line.
+    geom.rotateY(Math.PI + Math.PI / 6);
+
+    // Pitch the bat forward to give it an aggressive 3D perspective (handle closer to camera)
+    geom.rotateX(Math.PI / 6);
+
+    // Angle the handle diagonally towards the top-left
+    geom.rotateZ(Math.PI / 6);
+
+    return geom;
+  } catch (e) {
+    console.error("Failed to load bat stl", e);
+  }
+
+  const blade = new THREE.BoxGeometry(1.2, 4.0, 0.4);
+  blade.translate(0, -1.0, 0);
+  const handle = new THREE.CylinderGeometry(0.2, 0.2, 2.0, 16);
+  handle.translate(0, 2.0, 0);
+  return mergeGeometries([blade, handle]);
+}
+
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+
+async function createBallGeometry() {
+  try {
+    const loader = new OBJLoader();
+    const obj = await loader.loadAsync('/Cricket_Ball.obj');
+    obj.updateMatrixWorld(true);
+    const geometries: THREE.BufferGeometry[] = [];
+    obj.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const geom = child.geometry.clone();
+        geom.applyMatrix4(child.matrixWorld); // Apply local transforms!
+
+        geom.computeVertexNormals();
+        for (const key of Object.keys(geom.attributes)) {
+          if (key !== 'position' && key !== 'normal') {
+            geom.deleteAttribute(key);
           }
         }
+        geometries.push(geom);
       }
-      
-      const positions = new Float32Array(count * 3);
-      const colors = new Float32Array(count * 3);
-      
-      if (validPixels.length === 0) {
-        console.warn(`No valid pixels found in ${imagePath}`);
-        return resolve({ positions, colors });
-      }
-      
-      // Calculate center of mass for better 3D depth
-      let sumX = 0, sumY = 0;
-      validPixels.forEach(p => { sumX += p.x; sumY += p.y; });
-      const centerX = sumX / validPixels.length;
-      const centerY = sumY / validPixels.length;
-      
-      // Calculate max radius to normalize distance
-      let maxDist = 0;
-      validPixels.forEach(p => {
-        const d = Math.hypot(p.x - centerX, p.y - centerY);
-        if (d > maxDist) maxDist = d;
-      });
-      
-      // Fisher-Yates shuffle to randomly distribute selection without replacement (clumping prevention)
-      for (let i = validPixels.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const temp = validPixels[i];
-        validPixels[i] = validPixels[j];
-        validPixels[j] = temp;
-      }
-      
-      for (let i = 0; i < count; i++) {
-        // If count > valid pixels, it will safely wrap, but targetSize=600 guarantees enough pixels
-        const pixel = validPixels[i % validPixels.length];
-        
-        let px = ((pixel.x / canvas.width) - 0.5) * (canvas.width / targetSize) * 7.0;
-        let py = -((pixel.y / canvas.height) - 0.5) * (canvas.height / targetSize) * 7.0;
-        
-        // Sub-pixel jitter for organic feel
-        const jitterX = (Math.random() - 0.5) * (7.0 / targetSize);
-        const jitterY = (Math.random() - 0.5) * (7.0 / targetSize);
-        px += jitterX;
-        py += jitterY;
-        
-        // True 3D volume (Pillow/Dome shape)
-        // Thicker in the center of mass, tapering off at the edges
-        const distFromCenter = Math.hypot(pixel.x - centerX, pixel.y - centerY) / maxDist;
-        const thickness = Math.cos(distFromCenter * Math.PI / 2); // 1 at center, 0 at edges
-        
-        // Add random scatter within that thickness bounds
-        // Base volume scale is 2.5 units thick
-        const zDepth = (Math.random() - 0.5) * 2.5 * thickness; 
-        
-        positions[i * 3] = px;
-        positions[i * 3 + 1] = py;
-        positions[i * 3 + 2] = zDepth;
+    });
+    if (geometries.length > 0) {
+      return mergeGeometries(geometries);
+    }
+  } catch (e) {
+    console.error("Failed to load ball obj", e);
+  }
+  return new THREE.SphereGeometry(2.0, 32, 32);
+}
 
-        colors[i * 3] = pixel.r;
-        colors[i * 3 + 1] = pixel.g;
-        colors[i * 3 + 2] = pixel.b;
+function createStumpsGeometry() {
+  const s1 = new THREE.CylinderGeometry(0.15, 0.15, 4.0, 16);
+  s1.translate(-1.2, 0, 0);
+  const s2 = new THREE.CylinderGeometry(0.15, 0.15, 4.0, 16);
+  const s3 = new THREE.CylinderGeometry(0.15, 0.15, 4.0, 16);
+  s3.translate(1.2, 0, 0);
+  return mergeGeometries([s1, s2, s3]);
+}
+
+async function createBailsGeometry() {
+  try {
+    const loader = new STLLoader();
+    const geom = await loader.loadAsync('/Cricket_Bail.stl');
+
+    // Center the geometry so rotations happen around its middle
+    geom.center();
+    geom.computeBoundingBox();
+    const size = new THREE.Vector3();
+    geom.boundingBox!.getSize(size);
+
+    // Force alignment to X-axis (horizontal) so our math is consistent
+    const maxAxis = size.x > size.y ? (size.x > size.z ? 'x' : 'z') : (size.y > size.z ? 'y' : 'z');
+    if (maxAxis === 'y') geom.rotateZ(-Math.PI / 2);
+    else if (maxAxis === 'z') geom.rotateY(Math.PI / 2);
+
+    geom.computeBoundingBox();
+    geom.boundingBox!.getSize(size);
+    const len = size.x;
+    const thickness = Math.max(size.y, size.z);
+
+    const bail1 = geom.clone();
+    const bail2 = geom.clone();
+
+    // Bail 1 (Left bail): Offset so its right spigot is at the origin, angled slightly up
+    bail1.translate(-len * 0.45, 0, -thickness * 0.5); // Move back slightly
+    bail1.rotateZ(Math.PI / 9); // ~20 degrees up
+
+    // Bail 2 (Right bail): Offset so its left barrel rests on the origin, angled steeply down
+    bail2.translate(len * 0.35, thickness * 0.2, thickness * 0.5); // Move forward and slightly up to rest on top
+    bail2.rotateZ(-Math.PI / 5); // ~ -36 degrees down
+
+    const merged = mergeGeometries([bail1, bail2]);
+
+    // Add a slight 3D perspective tilt (looking down from slightly above)
+    merged.rotateX(-Math.PI / 12);
+
+    return merged;
+  } catch (e) {
+    console.error("Failed to load bail stl", e);
+  }
+
+  const b1 = new THREE.CylinderGeometry(0.12, 0.12, 1.2, 16);
+  b1.rotateZ(Math.PI / 2);
+  b1.translate(-0.6, 2.1, 0);
+  const b2 = new THREE.CylinderGeometry(0.12, 0.12, 1.2, 16);
+  b2.rotateZ(Math.PI / 2);
+  b2.translate(0.6, 2.1, 0);
+  return mergeGeometries([b1, b2]);
+}
+
+async function createHelmetGeometry() {
+  try {
+    const loader = new OBJLoader();
+    const obj = await loader.loadAsync('/HELMET.obj');
+    obj.updateMatrixWorld(true);
+    const geometries: THREE.BufferGeometry[] = [];
+    obj.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const geom = child.geometry.clone();
+        geom.applyMatrix4(child.matrixWorld); // Apply local transforms!
+
+        geom.computeVertexNormals();
+        for (const key of Object.keys(geom.attributes)) {
+          if (key !== 'position' && key !== 'normal') {
+            geom.deleteAttribute(key);
+          }
+        }
+        geometries.push(geom);
       }
-      
-      resolve({ positions, colors });
-    };
-    img.onerror = () => {
-      console.warn(`Could not load ${imagePath}`);
-      resolve({ positions: new Float32Array(count * 3), colors: new Float32Array(count * 3) });
-    };
-  });
+    });
+    if (geometries.length > 0) {
+      const merged = mergeGeometries(geometries);
+      // Tilt down slightly from the front (approx 15 degrees)
+      merged.rotateX(Math.PI / 12);
+      // Rotate 90 degrees so the "good" side of the helmet faces the camera
+      merged.rotateY(Math.PI / 2);
+      // Mirror the X-axis so the helmet faces left on screen instead of right,
+      // perfectly preserving the good render!
+      merged.scale(-1, 1, 1);
+      return merged;
+    }
+  } catch (e) {
+    console.error("Failed to load helmet obj", e);
+  }
+
+  const dome = new THREE.SphereGeometry(2.0, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2);
+
+  const brim = new THREE.TorusGeometry(2.0, 0.2, 16, 64, Math.PI);
+  brim.rotateX(Math.PI / 2);
+  brim.translate(0, 0, 0.5);
+
+  const grill1 = new THREE.TorusGeometry(1.8, 0.05, 8, 32, Math.PI);
+  grill1.rotateX(Math.PI / 2);
+  grill1.rotateY(-Math.PI / 6);
+  grill1.translate(0, -0.8, 0);
+
+  const grill2 = new THREE.TorusGeometry(1.7, 0.05, 8, 32, Math.PI);
+  grill2.rotateX(Math.PI / 2);
+  grill2.rotateY(-Math.PI / 6);
+  grill2.translate(0, -1.2, 0);
+
+  return mergeGeometries([dome, brim, grill1, grill2]);
+}
+
+async function createTrophyGeometry() {
+  try {
+    const loader = new OBJLoader();
+    const obj = await loader.loadAsync('/ICC_Trophy_Whole_rep.obj');
+
+    // Rotate to show the front view. Change this value if it needs to face a different direction.
+    obj.rotateY(Math.PI / 2);
+    obj.rotateX(-Math.PI / 2);
+
+    obj.updateMatrixWorld(true);
+    const geometries: THREE.BufferGeometry[] = [];
+    obj.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const geom = child.geometry.clone();
+        geom.applyMatrix4(child.matrixWorld);
+
+        geom.computeVertexNormals();
+        for (const key of Object.keys(geom.attributes)) {
+          if (key !== 'position' && key !== 'normal') {
+            geom.deleteAttribute(key);
+          }
+        }
+        geometries.push(geom);
+      }
+    });
+    if (geometries.length > 0) {
+      return mergeGeometries(geometries);
+    }
+  } catch (e) {
+    console.error("Failed to load trophy obj", e);
+  }
+
+  const base = new THREE.CylinderGeometry(1.2, 1.8, 2.5, 32);
+  base.translate(0, -1.25, 0);
+
+  const cup = new THREE.SphereGeometry(2.2, 32, 32, 0, Math.PI * 2, Math.PI / 2, Math.PI);
+  cup.rotateX(Math.PI);
+  cup.translate(0, 2.2, 0);
+
+  const h1 = new THREE.TorusGeometry(1.5, 0.15, 16, 32);
+  h1.rotateY(Math.PI / 2);
+  h1.translate(2.2, 2.0, 0);
+
+  const h2 = new THREE.TorusGeometry(1.5, 0.15, 16, 32);
+  h2.rotateY(Math.PI / 2);
+  h2.translate(-2.2, 2.0, 0);
+
+  return mergeGeometries([base, cup, h1, h2]);
+}
+
+function createPullShotGeometry() {
+  const torso = new THREE.CylinderGeometry(0.7, 0.6, 2.5, 16);
+  torso.rotateZ(-0.2);
+  torso.translate(0, 1.0, 0);
+
+  const head = new THREE.SphereGeometry(0.6, 16, 16);
+  head.translate(-0.5, 2.9, 0);
+
+  const leg1 = new THREE.CylinderGeometry(0.3, 0.25, 2.5, 16);
+  leg1.translate(-0.5, -1.2, 0.5);
+
+  const leg2 = new THREE.CylinderGeometry(0.3, 0.25, 2.5, 16);
+  leg2.rotateZ(-0.3);
+  leg2.translate(0.5, -1.0, -0.5);
+
+  const arm1 = new THREE.CylinderGeometry(0.2, 0.2, 2.0, 16);
+  arm1.rotateZ(Math.PI / 2.5);
+  arm1.translate(-1.0, 1.5, 0.8);
+
+  const bat = new THREE.BoxGeometry(0.4, 3.5, 0.15);
+  bat.rotateZ(-Math.PI / 3.5);
+  bat.translate(-2.5, 2.5, 0.8);
+
+  return mergeGeometries([torso, head, leg1, leg2, arm1, bat]);
 }
 
 /**
@@ -176,8 +375,8 @@ function normalizePositions(positions: Float32Array, targetScale: number = 4.5):
   for (let i = 0; i < count; i++) {
     positions[i * 3] = (positions[i * 3] - cx) * scale;
     positions[i * 3 + 1] = (positions[i * 3 + 1] - cy) * scale;
-    // Keep Z depth somewhat consistent even after scaling
-    positions[i * 3 + 2] = (positions[i * 3 + 2] - cz) * (scale * 0.5); 
+    // Maintain true 3D proportions after scaling
+    positions[i * 3 + 2] = (positions[i * 3 + 2] - cz) * scale;
   }
 
   return positions;
@@ -188,24 +387,14 @@ function normalizePositions(positions: Float32Array, targetScale: number = 4.5):
  * Returns an object with Float32Array for each target.
  */
 export async function generateAllTargetsAsync(count: number = PARTICLE_COUNT) {
-  // Parallel load and sample all 7 SVG/PNG silhouettes
-  const [
-    pullShotData,
-    batData,
-    ballData,
-    helmetData,
-    stumpsData,
-    winnersCupData,
-    worldCupData
-  ] = await Promise.all([
-    generateFromImageAsync('/pull_shot_silhouette.png', count),
-    generateFromImageAsync('/bat.png', count),
-    generateFromImageAsync('/ball.png', count),
-    generateFromImageAsync('/helmet.png', count),
-    generateFromImageAsync('/stumps.png', count),
-    generateFromImageAsync('/winners_cup.png', count),
-    generateFromImageAsync('/world_cup.png', count)
-  ]);
+  // Generate true 3D particles from geometries
+  const pullShotData = generateFromGeometry(createPullShotGeometry(), count);
+  const batData = generateFromGeometry(await createBatGeometry(), count);
+  const ballData = generateFromGeometry(await createBallGeometry(), count);
+  const helmetData = generateFromGeometry(await createHelmetGeometry(), count);
+  const stumpsData = generateFromGeometry(createStumpsGeometry(), count);
+  const bailsData = generateFromGeometry(await createBailsGeometry(), count);
+  const trophyData = generateFromGeometry(await createTrophyGeometry(), count);
 
   return {
     random: generateRandomPositions(count),
@@ -215,8 +404,8 @@ export async function generateAllTargetsAsync(count: number = PARTICLE_COUNT) {
     ball: normalizePositions(ballData.positions),
     helmet: normalizePositions(helmetData.positions),
     stumps: normalizePositions(stumpsData.positions),
-    bails: normalizePositions(winnersCupData.positions), // Re-using bails slot for winners cup
-    trophy: normalizePositions(worldCupData.positions),
+    bails: normalizePositions(bailsData.positions),
+    trophy: normalizePositions(trophyData.positions),
   };
 }
 

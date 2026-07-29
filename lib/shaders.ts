@@ -243,8 +243,11 @@ void main() {
     visibility = 1.0 - smoothT; // Fade out as they disperse back to random
   }
   
-  // Also fade them out if they are too close to the camera to prevent clipping
-  float camFade = smoothstep(2.0, 6.0, -mvPosition.z);
+  // Let particles pass right through the camera natively for a volumetric pass-through effect
+  float camFade = 1.0;
+  
+  // Calculate the local position of the particle within the object
+  vec3 localPos = mix(currentTarget, nextTarget, smoothT);
   
   vVisibility = visibility * camFade;
 }

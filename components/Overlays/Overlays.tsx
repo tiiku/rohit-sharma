@@ -162,7 +162,8 @@ export default function Overlays() {
           color: '#F4F1E1',
           lineHeight: 0.9,
           letterSpacing: '0.02em',
-          margin: 0,
+          margin: '0 auto',
+          textAlign: 'center',
           opacity: titleOpacity,
         }}>
           {activeSection.title}
@@ -176,7 +177,8 @@ export default function Overlays() {
           color: '#CAB061',
           fontStyle: 'italic',
           letterSpacing: '0.05em',
-          margin: 0,
+          margin: '0 auto',
+          textAlign: 'center',
           opacity: subtitleOpacity,
         }}>
           {activeSection.subtitle}
