@@ -127,6 +127,7 @@ attribute vec3 aPositionRandom;
 attribute float aSize;
 attribute float aRandom;
 attribute vec3 aBatColor;
+attribute vec3 aDisplacement;
 
 varying float vAlpha;
 varying float vDistToCenter;
@@ -173,6 +174,9 @@ void main() {
   float smoothT = easeOutCubic(particleT);
   
   vec3 pos = mix(currentTarget, nextTarget, smoothT);
+  
+  // Apply CPU-computed physical displacement
+  pos += aDisplacement;
 
   // === ALIVE MOTION (Premium Organic Feel) ===
   
