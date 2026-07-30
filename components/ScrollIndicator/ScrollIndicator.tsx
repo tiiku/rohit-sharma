@@ -98,7 +98,7 @@ export default function ScrollIndicator() {
                   visibility: isHovered ? 'visible' : 'hidden',
                   transition: 'all 0.3s ease',
                   whiteSpace: 'nowrap',
-                  fontFamily: "'Outfit', sans-serif",
+                  fontFamily: "'Jersey M54', 'Outfit', sans-serif",
                   fontSize: '12px',
                   fontWeight: 400,
                   color: '#FFFFFF',

@@ -151,7 +151,7 @@ export default function MemoryFlashback({ scrollProgressRef }: MemoryFlashbackPr
         textAlign: 'center',
         width: '100%',
         color: '#CAB061',
-        fontFamily: "var(--font-cinzel), 'Cinzel', serif",
+        fontFamily: "'Jersey M54', var(--font-cinzel), 'Cinzel', serif",
         fontSize: '28px',
         letterSpacing: '0.2em',
         textTransform: 'uppercase',

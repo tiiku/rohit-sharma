@@ -67,10 +67,10 @@ class Particle {
     
     if (pSize > 0.5) {
       const gradient = ctx.createRadialGradient(px, py, 0, px, py, pSize);
-      gradient.addColorStop(0, `rgba(153, 129, 0, 1)`); // #FFD700 * 0.6
-      gradient.addColorStop(0.8, `rgba(153, 98, 0, 1)`); // #FFA500 * 0.6
-      gradient.addColorStop(0.9, `rgba(153, 98, 0, 0.5)`); // smoothstep falloff start
-      gradient.addColorStop(1, `rgba(153, 98, 0, 0)`); // discard edge
+      gradient.addColorStop(0, `rgba(121, 105, 58, 1)`); // #CAB061 * 0.6
+      gradient.addColorStop(0.8, `rgba(121, 105, 58, 1)`); // #CAB061 * 0.6
+      gradient.addColorStop(0.9, `rgba(121, 105, 58, 0.5)`); // smoothstep falloff start
+      gradient.addColorStop(1, `rgba(121, 105, 58, 0)`); // discard edge
 
       ctx.fillStyle = gradient;
       ctx.beginPath();
@@ -225,14 +225,12 @@ export default function Loader({ onComplete }: LoaderProps) {
         <div style={{
           fontSize: 'clamp(80px, 15vw, 180px)',
           fontWeight: 800,
-          fontFamily: "'Playfair Display', serif",
-          background: 'linear-gradient(135deg, #FFD700, #FFA500, #B8860B)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
+          fontFamily: "'Jersey M54', 'Playfair Display', serif",
+          color: '#CAB061',
           lineHeight: 1,
           letterSpacing: '-0.02em',
           textShadow: 'none',
-          filter: 'drop-shadow(0 0 30px rgba(255,215,0,0.3))',
+          filter: 'drop-shadow(0 0 30px rgba(202, 176, 97, 0.3))',
         }}>
           {count}*
         </div>

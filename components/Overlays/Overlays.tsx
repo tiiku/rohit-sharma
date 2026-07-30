@@ -127,7 +127,6 @@ export default function Overlays() {
   if (!activeSection) return null;
 
   const sectionIndex = SECTIONS.findIndex(s => s.id === activeSection.id);
-  const isEven = sectionIndex % 2 === 0;
 
   return (
     <div
@@ -158,10 +157,11 @@ export default function Overlays() {
         <h2 style={{
           fontSize: activeSection.title.length <= 5 ? '180px' : 'clamp(60px, 10vw, 140px)',
           fontWeight: 800,
-          fontFamily: "var(--font-cinzel), 'Cinzel', serif",
+          fontFamily: "'Jersey M54', var(--font-cinzel), 'Cinzel', serif",
           color: '#F4F1E1',
           lineHeight: 0.9,
           letterSpacing: '0.02em',
+          paddingLeft: '0.02em',
           margin: '0 auto',
           textAlign: 'center',
           opacity: titleOpacity,
@@ -177,6 +177,7 @@ export default function Overlays() {
           color: '#CAB061',
           fontStyle: 'italic',
           letterSpacing: '0.05em',
+          paddingLeft: '0.05em',
           margin: '0 auto',
           textAlign: 'center',
           opacity: subtitleOpacity,
