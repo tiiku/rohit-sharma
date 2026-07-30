@@ -86,11 +86,14 @@ export default function Loader({ onComplete }: LoaderProps) {
   const [fadeOut, setFadeOut] = useState(false);
   const [visible, setVisible] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [waitingForClick, setWaitingForClick] = useState(false);
+
   const frameRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
   const isExplodingRef = useRef(false);
+  const waitingForClickRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
@@ -144,18 +147,11 @@ export default function Loader({ onComplete }: LoaderProps) {
         frameRef.current = requestAnimationFrame(animate);
       } else {
         setCount(264);
-        if (!isExplodingRef.current) {
-          isExplodingRef.current = true;
-          
-          setTimeout(() => {
-            setFadeOut(true);
-            setTimeout(() => {
-              setVisible(false);
-              onComplete();
-            }, 1800); // give time for the fadeout
-          }, 300); // slight delay after hitting 264 before fading everything out
+        if (!waitingForClickRef.current && !isExplodingRef.current) {
+          waitingForClickRef.current = true;
+          setWaitingForClick(true);
         }
-        // keep animating particles at max speed while fading out
+        // keep animating particles at max speed while waiting and fading out
         frameRef.current = requestAnimationFrame(animate);
       }
     };
@@ -168,11 +164,24 @@ export default function Loader({ onComplete }: LoaderProps) {
     };
   }, [onComplete]);
 
+  const handleClick = () => {
+    if (waitingForClickRef.current && !isExplodingRef.current) {
+      isExplodingRef.current = true;
+      setWaitingForClick(false);
+      setFadeOut(true);
+      setTimeout(() => {
+        setVisible(false);
+        onComplete();
+      }, 1800);
+    }
+  };
+
   if (!visible) return null;
 
   return (
     <div
       id="loader-screen"
+      onClick={handleClick}
       style={{
         position: 'fixed',
         inset: 0,
@@ -182,6 +191,7 @@ export default function Loader({ onComplete }: LoaderProps) {
         alignItems: 'center',
         justifyContent: 'center',
         pointerEvents: fadeOut ? 'none' : 'auto',
+        cursor: waitingForClick ? 'pointer' : 'default',
       }}
     >
       <div 
@@ -233,6 +243,22 @@ export default function Loader({ onComplete }: LoaderProps) {
           filter: 'drop-shadow(0 0 30px rgba(202, 176, 97, 0.3))',
         }}>
           {count}*
+        </div>
+
+        {/* Click to experience text */}
+        <div style={{
+          marginTop: '20px',
+          fontSize: 'clamp(14px, 2vw, 20px)',
+          fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif",
+          color: '#F4F1E1',
+          textTransform: 'uppercase',
+          letterSpacing: '0.2em',
+          paddingLeft: '0.2em', // Offset letter spacing to perfectly center
+          opacity: waitingForClick && !fadeOut ? 0.8 : 0,
+          transition: 'opacity 1s ease-in',
+          pointerEvents: 'none',
+        }}>
+          click to experience masterpiece
         </div>
       </div>
     </div>
