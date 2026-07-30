@@ -39,7 +39,7 @@ const SECTIONS: Section[] = [
   },
   {
     id: 'helmet',
-    title: '5',
+    title: '7',
     subtitle: 'ICC Tournament Centuries',
     startProgress: 0.4375,
     endProgress: 0.4875,
@@ -54,7 +54,7 @@ const SECTIONS: Section[] = [
   {
     id: 'bails',
     title: '2024',
-    subtitle: 'T20 World Cup Champion',
+    subtitle: 'T20 World Cup Champion as Captain',
     startProgress: 0.6875,
     endProgress: 0.7375,
   },

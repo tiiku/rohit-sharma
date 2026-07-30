@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import YouTube, { YouTubeProps } from 'react-youtube';
 
 interface MemoryFlashbackProps {
   scrollProgressRef: React.RefObject<number>;
@@ -10,7 +9,7 @@ interface MemoryFlashbackProps {
 export default function MemoryFlashback({ scrollProgressRef }: MemoryFlashbackProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
-  const playerRef = useRef<any>(null);
+  const playerRef = useRef<HTMLVideoElement>(null);
   
   const [particles, setParticles] = useState<any[]>([]);
 
@@ -27,22 +26,6 @@ export default function MemoryFlashback({ scrollProgressRef }: MemoryFlashbackPr
       }))
     );
   }, []);
-
-  const opts: YouTubeProps['opts'] = {
-    height: '100%',
-    width: '100%',
-    playerVars: {
-      autoplay: 1,
-      controls: 0,
-      disablekb: 1,
-      fs: 0,
-      modestbranding: 1,
-      mute: 1, // Keep the video silent so it doesn't clash with climax music
-      playsinline: 1,
-      iv_load_policy: 3, // Hide annotations
-      rel: 0, // Hide related videos at the end
-    },
-  };
 
   useEffect(() => {
     const updateOpacity = () => {
@@ -63,12 +46,10 @@ export default function MemoryFlashback({ scrollProgressRef }: MemoryFlashbackPr
 
         if (playerRef.current) {
           if (opacity > 0) {
-            if (playerRef.current.getPlayerState() !== 1) { // 1 is playing
-              playerRef.current.playVideo();
+            if (playerRef.current.paused) {
+              playerRef.current.play().catch(() => {});
             }
           }
-          // We no longer pause the video when opacity is 0. 
-          // Pausing causes YouTube to render a large play/pause button overlay.
         }
       }
       rafRef.current = requestAnimationFrame(updateOpacity);
@@ -77,17 +58,6 @@ export default function MemoryFlashback({ scrollProgressRef }: MemoryFlashbackPr
     rafRef.current = requestAnimationFrame(updateOpacity);
     return () => cancelAnimationFrame(rafRef.current);
   }, [scrollProgressRef]);
-
-  const onPlayerReady = (event: any) => {
-    playerRef.current = event.target;
-    playerRef.current.playVideo();
-  };
-
-  const onPlayerEnd = (event: any) => {
-    // Manually loop the video since we removed the `playlist` and `loop` params
-    event.target.seekTo(0);
-    event.target.playVideo();
-  };
 
   return (
     <div
@@ -149,15 +119,17 @@ export default function MemoryFlashback({ scrollProgressRef }: MemoryFlashbackPr
         <div style={{
           width: '100%',
           height: '100%',
-          pointerEvents: 'none', // Prevent interaction with the iframe
-          transform: 'scale(1.5)', // Scale up to hide YouTube UI and black bars
+          pointerEvents: 'none', // Prevent interaction with the video
+          transform: 'scale(1.2)', // Slight scale up to fill edge
         }}>
-          <YouTube
-            videoId="iqGsCh_BdnA"
-            opts={opts}
-            onReady={onPlayerReady}
-            onEnd={onPlayerEnd}
-            style={{ width: '100%', height: '100%', border: 'none' }}
+          <video
+            ref={playerRef}
+            src="/rohit-sharma.mp4"
+            loop
+            muted
+            playsInline
+            autoPlay
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         </div>
         
