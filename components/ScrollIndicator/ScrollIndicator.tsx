@@ -68,16 +68,9 @@ export default function ScrollIndicator() {
               style={{
                 position: 'relative',
                 pointerEvents: 'auto',
-                cursor: 'pointer',
               }}
               onMouseEnter={() => setHoveredIndex(idx)}
               onMouseLeave={() => setHoveredIndex(null)}
-              onClick={() => {
-                // Smooth scroll to the start of this cycle
-                const targetProgress = (idx / 8) + 0.03; // Slightly past the start to see it forming
-                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-                window.scrollTo({ top: targetProgress * docHeight, behavior: 'smooth' });
-              }}
             >
               <div
                 style={{

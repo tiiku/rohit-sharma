@@ -20,7 +20,7 @@ export default function CricketBall(props: CricketBallProps) {
   // without affecting the cached original.
   const clonedObj = useMemo(() => {
     const clone = obj.clone();
-    
+
     // Optional: Traverse and apply materials if the OBJ lacks an MTL file
     clone.traverse((child) => {
       if (child instanceof THREE.Mesh) {
@@ -32,7 +32,7 @@ export default function CricketBall(props: CricketBallProps) {
         });
       }
     });
-    
+
     return clone;
   }, [obj]);
 

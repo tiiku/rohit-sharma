@@ -40,12 +40,12 @@ function SceneContent() {
         mouseWorldRef={mouseWorldRef}
       />
 
-      {/* Subtle bloom postprocessing */}
+      {/* Bloom postprocessing — luminous particle glow */}
       <EffectComposer enableNormalPass={false}>
         <Bloom
-          luminanceThreshold={0.9}
-          luminanceSmoothing={0.1}
-          intensity={0.15}
+          luminanceThreshold={0.4}
+          luminanceSmoothing={0.3}
+          intensity={0.6}
           mipmapBlur
         />
       </EffectComposer>

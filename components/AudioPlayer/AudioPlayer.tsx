@@ -9,10 +9,10 @@ interface AudioPlayerProps {
 }
 
 export default function AudioPlayer({ scrollProgressRef }: AudioPlayerProps) {
-  const [isMuted, setIsMuted] = useState(true); 
+  const [isMuted, setIsMuted] = useState(true);
   const [readyA, setReadyA] = useState(false);
   const [readyB, setReadyB] = useState(false);
-  
+
   const playerA = useRef<any>(null);
   const playerB = useRef<any>(null);
   const rafRef = useRef<number>(0);
@@ -79,16 +79,16 @@ export default function AudioPlayer({ scrollProgressRef }: AudioPlayerProps) {
   useEffect(() => {
     const updateVolumes = () => {
       const p = scrollProgressRef.current ?? 0;
-      
+
       if (playerA.current && playerB.current && readyA && readyB && !isMuted) {
         // Assume climax starts near 0.85 progress
         const climaxStart = 0.80;
         const climaxEnd = 0.95;
-        
+
         let climaxProgress = 0;
         if (p > climaxStart) {
           climaxProgress = Math.min((p - climaxStart) / (climaxEnd - climaxStart), 1);
-          
+
           // Start playing B if it isn't already
           if (!isPlayingBRef.current) {
             playerB.current.playVideo();
@@ -118,8 +118,8 @@ export default function AudioPlayer({ scrollProgressRef }: AudioPlayerProps) {
   return (
     <>
       <div style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0, overflow: 'hidden' }}>
-        <YouTube videoId="ydPGNrDP6hA" opts={optsA} onReady={onReadyA} />
-        <YouTube videoId="Ola4bQ7opeM" opts={optsB} onReady={onReadyB} />
+        <YouTube videoId="ydPGNrDP6hA" opts={optsA} onReady={onReadyA} onEnd={(e) => { e.target.seekTo(155); e.target.playVideo(); }} />
+        <YouTube videoId="Ola4bQ7opeM" opts={optsB} onReady={onReadyB} onEnd={(e) => { e.target.seekTo(0); e.target.playVideo(); }} />
       </div>
 
       <button

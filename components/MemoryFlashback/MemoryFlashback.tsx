@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import YouTube, { YouTubeProps } from 'react-youtube';
 
 interface MemoryFlashbackProps {
@@ -11,6 +11,22 @@ export default function MemoryFlashback({ scrollProgressRef }: MemoryFlashbackPr
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
   const playerRef = useRef<any>(null);
+  
+  const [particles, setParticles] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Generate particles only on the client to avoid hydration mismatch
+    setParticles(
+      Array.from({ length: 50 }).map((_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        top: Math.random() * 100,
+        size: Math.random() * 3 + 1,
+        duration: Math.random() * 15 + 10,
+        delay: Math.random() * -20,
+      }))
+    );
+  }, []);
 
   const opts: YouTubeProps['opts'] = {
     height: '100%',
@@ -89,6 +105,34 @@ export default function MemoryFlashback({ scrollProgressRef }: MemoryFlashbackPr
         transition: 'opacity 0.1s linear',
       }}
     >
+      <style>{`
+        @keyframes float-flashback {
+          0% { transform: translateY(0px) scale(0.5); opacity: 0; }
+          20% { opacity: 0.7; }
+          80% { opacity: 0.7; }
+          100% { transform: translateY(-150px) scale(1.5); opacity: 0; }
+        }
+      `}</style>
+
+      {/* Floating Particles */}
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          style={{
+            position: 'absolute',
+            left: `${p.left}%`,
+            top: `${p.top}%`,
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            backgroundColor: 'rgba(255, 230, 180, 0.8)', // Warm, cinematic flashback color
+            borderRadius: '50%',
+            boxShadow: `0 0 ${p.size * 2}px rgba(255, 230, 180, 0.6)`,
+            animation: `float-flashback ${p.duration}s infinite linear ${p.delay}s`,
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}
+        />
+      ))}
       <div
         style={{
           width: '90vw',

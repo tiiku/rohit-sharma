@@ -179,22 +179,21 @@ void main() {
   float isTransition = sin(t * 3.14159265);
   vBlurriness = isTransition;
 
-  // Micro-turbulence using simplex noise (Max idle movement 1-2px)
-  // Scale down the noise amplitude significantly for stability
+  // Micro-turbulence using simplex noise — very subtle for shape stability
   float noiseScale = 0.8;
-  float noiseSpeed = uTime * 0.15;
+  float noiseSpeed = uTime * 0.12;
   float nx = snoise(vec3(pos.x * noiseScale, pos.y * noiseScale, noiseSpeed + aRandom * 100.0));
   float ny = snoise(vec3(pos.y * noiseScale, pos.z * noiseScale, noiseSpeed + aRandom * 200.0));
   float nz = snoise(vec3(pos.z * noiseScale, pos.x * noiseScale, noiseSpeed + aRandom * 300.0));
 
-  // Limit noise to very tiny values (simulating 1-2px on screen)
-  float noiseAmplitude = 0.05 + aRandom * 0.05; 
+  // Keep noise very small to preserve clean shape definition
+  float noiseAmplitude = 0.02 + aRandom * 0.03; 
   pos += vec3(nx, ny, nz) * noiseAmplitude;
 
-  // Continuous breathing effect (scale oscillation)
-  float breathPhase = uTime * (1.0 + aRandom * 0.5) + aRandom * 6.28;
+  // Gentle breathing effect
+  float breathPhase = uTime * (0.8 + aRandom * 0.4) + aRandom * 6.28;
   float breath = sin(breathPhase) * uBreathing;
-  pos *= 1.0 + breath * 0.02;
+  pos *= 1.0 + breath * 0.01;
 
   // Subtle orbital drift (adds volume)
   float orbitAngle = uTime * 0.1 + aRandom * 6.28;
@@ -206,15 +205,13 @@ void main() {
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
   gl_Position = projectionMatrix * mvPosition;
 
-  // STRICT PARTICLE SIZING
-  // Mostly tiny (1-2px) with a few slightly larger (up to 3px)
-  // We manipulate baseSize to favor small values heavily
-  float randomSizeCurve = pow(aRandom, 3.0); // Skews distribution to 0
-  float pixelBaseSize = 1.0 + randomSizeCurve * 2.0; // 1 to 3 pixels
+  // STRICT PARTICLE SIZING — tiny crisp dots like the reference
+  float randomSizeCurve = pow(aRandom, 4.0); // Even more skewed toward small
+  float pixelBaseSize = 0.8 + randomSizeCurve * 1.5; // 0.8 to 2.3 pixels
   
-  // Apply perspective distance attenuation, but clamp it carefully
+  // Apply perspective distance attenuation
   float distScale = 50.0 / -mvPosition.z;
-  gl_PointSize = clamp(pixelBaseSize * distScale, 0.5, 3.5);
+  gl_PointSize = clamp(pixelBaseSize * distScale, 0.5, 2.5);
 
   // Varyings
   float distToCam = length(mvPosition.xyz);
@@ -267,18 +264,19 @@ varying float vBrightness;
 varying float vVisibility;
 
 void main() {
-  // Crisp circular particle with sharp edges to minimize bloom and look premium
+  // Crisp circular particle with radial glow falloff
   vec2 center = gl_PointCoord - vec2(0.5);
   float dist = length(center);
 
   // Strict cut-off for perfect circles
   if (dist > 0.5) discard;
 
-  // Sharp anti-aliased edge, not a soft glowing blob
-  float innerEdge = mix(0.48, 0.2, vBlurriness * 0.5); // Slightly softer only during transitions
+  // Bright core with soft radial falloff — creates a natural glow per particle
+  float core = smoothstep(0.5, 0.0, dist); // 1.0 at center, 0.0 at edge
+  float coreIntensity = pow(core, 1.5); // Concentrate brightness at center
   
   // Apply visibility fade
-  float alpha = smoothstep(0.5, innerEdge, dist) * vAlpha * vVisibility;
+  float alpha = coreIntensity * vAlpha * vVisibility;
 
   // Current color palette (Golden / Amber / White)
   vec3 white = vec3(1.0, 1.0, 1.0);
@@ -293,15 +291,15 @@ void main() {
   vec3 color = mix(white, goldenColor, vTrophyWeight + 0.2); // Always a hint of gold
 
   // Apply per-particle brightness variation
-  color *= (0.8 + 0.4 * vBrightness);
+  color *= (0.85 + 0.3 * vBrightness);
   
-  // Add a bright core to some larger particles to look like tiny LEDs / stars
-  if (vRandom > 0.95 && dist < 0.2) {
-      color = mix(color, vec3(1.0), 0.8);
+  // Bright hot core for some particles (star-like)
+  if (vRandom > 0.92 && dist < 0.15) {
+      color = mix(color, vec3(1.0), 0.9);
   }
 
-  // Keep colors controlled to avoid additive blending blowing out the screen
-  color *= 0.7;
+  // Let colors stay bright — the bloom pass will handle the glow spread
+  color *= 0.85;
 
   gl_FragColor = vec4(color, alpha);
 }
